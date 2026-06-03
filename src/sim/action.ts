@@ -47,11 +47,15 @@ function readonlyView(world: World): ReadonlyWorld {
  * Resolve one action to an outcome. Pure pipeline: no reaction cascade (that is
  * `perform`'s job). Never throws on an unknown action type — it rejects.
  */
-export function resolve(world: World, action: Action): ActionOutcome {
+/** Guard against a handler chain redirecting forever. */
+const MAX_REDIRECT = 8;
+
+export function resolve(world: World, action: Action, depth = 0): ActionOutcome {
   const view = readonlyView(world);
   const effects: Effect[] = [];
   let rejectReason: string | undefined;
   let fizzleReason: string | undefined;
+  let redirectAction: Action | undefined;
 
   const ctx: ActionContext = {
     world: view,
@@ -66,6 +70,9 @@ export function resolve(world: World, action: Action): ActionOutcome {
     fizzle(reason) {
       if (fizzleReason === undefined) fizzleReason = reason;
     },
+    redirect(next) {
+      if (redirectAction === undefined) redirectAction = next;
+    },
     cost: world.services.config.baseActionCost,
   };
 
@@ -77,6 +84,14 @@ export function resolve(world: World, action: Action): ActionOutcome {
     return { status: 'rejected', reason: `unknown action: ${action.type}` };
   }
   handler(ctx);
+
+  // 1b. Redirect: the handler declined and named a different action to run.
+  if (redirectAction !== undefined && rejectReason === undefined) {
+    if (depth >= MAX_REDIRECT) {
+      return { status: 'rejected', reason: 'redirect depth exceeded' };
+    }
+    return resolve(world, redirectAction, depth + 1);
+  }
 
   // 2. Pre-phase reactors (skip if the handler already invalidated the action).
   if (rejectReason === undefined) runPreReactors(world, ctx);

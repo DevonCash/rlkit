@@ -63,6 +63,14 @@ export interface ActionContext {
   reject(reason: string): void;
   /** FAILED: queued effects still apply and the turn is spent. */
   fizzle(reason: string): void;
+  /**
+   * Re-dispatch this turn as a different action: the handler declines to act and
+   * `resolve` instead resolves `action` fully (its own handler + pre-phase
+   * reactors + validate-all-then-apply). Used by `bump` to become an `attack`
+   * so the target's reactors fire. Effects pushed before redirecting are
+   * discarded.
+   */
+  redirect(action: Action): void;
   /** Energy cost of the action; pre-phase reactors may adjust it. */
   cost: number;
 }

@@ -17,7 +17,7 @@ import { get } from '../../core/entity';
 import type { EntityId } from '../../core/entity';
 import { cellOf } from '../../core/coords';
 import type { Position } from '../../core/component';
-import type { ActionContext, ActionHandler } from '../../core/action';
+import type { ActionContext } from '../../core/action';
 import { makeMoveEffect } from './move';
 
 type BumpOutcome =
@@ -77,13 +77,8 @@ export function bumpHandler(ctx: ActionContext): void {
       ctx.push(makeMoveEffect(other, pos.x, pos.y));
     })
     .with({ kind: 'attack' }, ({ target }) => {
-      // Forward-compatible: dispatch the registered attack handler (M4+).
-      const attack = handlers?.tryGet('attack') as ActionHandler | undefined;
-      if (attack) {
-        attack({ ...ctx, action: { type: 'attack', actor: action.actor, target } });
-      } else {
-        ctx.fizzle('bump: blocked');
-      }
+      // Re-dispatch as a full attack so the target's reactors fire (§7.2).
+      ctx.redirect({ type: 'attack', actor: action.actor, target });
     })
     .with({ kind: 'blocked' }, () => {
       ctx.fizzle('bump: blocked');

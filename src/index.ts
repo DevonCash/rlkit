@@ -12,6 +12,7 @@ import { createTimeline } from './sim/timeline';
 import { registerCoreHandlers } from './sim/handlers';
 import { registerCoreTiles } from './core/tiles';
 import { registerCoreComponents } from './core/component';
+import { diedReactor } from './sim/death';
 import { bsp } from './mapgen/bsp';
 import type { MapGenerator } from './mapgen/generator';
 import type { ComponentRegistry } from './core/component';
@@ -197,5 +198,6 @@ export function createWorld(opts: WorldOptions): World {
   registerCoreComponents(world.services.registries.components as ComponentRegistry);
   registerCoreTiles(world.services.tiles, world.services.config.tiles);
   (world.services.registries.generators as Registry<MapGenerator>).register('bsp', bsp);
+  world.services.reactors.register(diedReactor);
   return world;
 }

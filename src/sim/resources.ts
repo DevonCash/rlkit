@@ -92,26 +92,38 @@ export interface ChangeResourceOptions {
   requireSufficient?: boolean;
 }
 
-/** An effect that applies a resource change atomically through the pipeline. */
+/** A resource-change effect with a mutable `delta` pre-reactors may edit. */
+export interface ResourceEffect extends Effect {
+  /** The pending change; a pre-phase reactor (armor) can adjust it before apply. */
+  delta: number;
+}
+
+/**
+ * An effect that applies a resource change atomically through the pipeline. Its
+ * `delta` is public and mutable so a pre-phase reactor can soften a pending
+ * damage effect (the §7.2 armor example) before it applies.
+ */
 export function changeResourceEffect(
   entityId: string,
   resourceId: string,
   delta: number,
   cause: string,
   opts: ChangeResourceOptions = {},
-): Effect {
-  return {
+): ResourceEffect {
+  const effect: ResourceEffect = {
     kind: `resource:${resourceId}`,
+    delta,
     validate(world) {
       const e = world.state.entities.get(entityId);
       const comp = e && get<ResourcesComponent>(e, 'resources');
       const pool = comp?.pools[resourceId];
       if (!pool) return false;
-      if (opts.requireSufficient && pool.current + delta < 0) return false;
+      if (opts.requireSufficient && pool.current + effect.delta < 0) return false;
       return true;
     },
     apply(world) {
-      return changeResource(world, entityId, resourceId, delta, cause);
+      return changeResource(world, entityId, resourceId, effect.delta, cause);
     },
   };
+  return effect;
 }

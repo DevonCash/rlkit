@@ -15,6 +15,7 @@ import type { Action, ActionContext } from './action';
 import type { Entity } from './entity';
 import type { GameEvent } from './events';
 import type { ReadonlyWorld } from './world';
+import type { StatModifier } from './stats';
 import { createRegistry, type Registry } from './registry';
 
 export interface Mixin {
@@ -25,6 +26,12 @@ export interface Mixin {
   onAction?(ctx: ActionContext, self: Entity): void;
   /** Post-phase reaction to an event; may enqueue follow-up actions. */
   onEvent?(ev: GameEvent, self: Entity, world: ReadonlyWorld): Action[] | void;
+  /**
+   * Pure contribution to derived stats (§9.1) — NOT a reactor. Returns typed
+   * modifiers that `deriveStats` applies in fixed phase order; it never mutates
+   * world state, so it's safe to call any time stats are recomputed.
+   */
+  modifyStats?(self: Entity, world: ReadonlyWorld): StatModifier[];
 }
 
 export type MixinRegistry = Registry<Mixin>;

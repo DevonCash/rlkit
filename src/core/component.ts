@@ -63,10 +63,17 @@ export const Renderable = z.object({
 });
 export type Renderable = z.infer<typeof Renderable>;
 
+export const Stats = z.object({
+  type: z.literal('stats'),
+  base: z.record(z.string(), z.number()),
+});
+export type Stats = z.infer<typeof Stats>;
+
 /** Register the built-in component schemas into a registry. */
 export function registerCoreComponents(reg: ComponentRegistry): void {
   reg.register('position', { type: 'position', schema: Position });
   reg.register('renderable', { type: 'renderable', schema: Renderable });
+  reg.register('stats', { type: 'stats', schema: Stats });
 }
 
 // --- Blueprints (content as data, §5.4) ----------------------------------

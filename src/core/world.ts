@@ -151,6 +151,9 @@ export function createWorld(opts: CreateWorldOptions): World {
     blueprints: createRegistry('blueprint'),
     generators: createRegistry('generator'),
     handlers: createRegistry('handler'),
+    stats: createRegistry('stat'),
+    resources: createRegistry('resource'),
+    statuses: createRegistry('status'),
     ...opts.registries,
   };
 

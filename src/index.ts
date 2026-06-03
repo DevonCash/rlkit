@@ -24,6 +24,7 @@ import {
 } from './sim/items';
 import type { Mixin } from './core/mixin';
 import { aiHunterMixin, aiWandererMixin } from './sim/ai/simple';
+import { createFieldManager } from './sim/ai/field';
 import { diedReactor } from './sim/death';
 import { bsp } from './mapgen/bsp';
 import type { MapGenerator } from './mapgen/generator';
@@ -259,6 +260,7 @@ export function createWorld(opts: WorldOptions): World {
     makeTimeline: createTimeline,
     fov: opts.fov ?? makeRotFov(),
     path: opts.path ?? makeRotPath(),
+    makeFields: createFieldManager,
     ...(opts.registries ? { registries: opts.registries } : {}),
   };
   const world = assembleWorld(core);

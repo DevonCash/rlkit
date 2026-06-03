@@ -20,6 +20,7 @@ import { createReactorRegistry, type ReactorRegistry } from './reactor';
 import { createTilePalette, type TilePalette } from './tiles';
 import type { FovProvider } from './fov';
 import type { PathProvider } from './path';
+import type { FieldManager } from './fields';
 
 /** A one-shot delayed effect scheduled on the world clock (§7.1). */
 export type TimerId = number;
@@ -92,6 +93,8 @@ export interface Services {
   fov: FovProvider;
   /** Pathfinding provider (rotJS behind the interface — §11.1). */
   path: PathProvider;
+  /** Per-level field stores (goal/scent/influence — §11.3). */
+  fields: FieldManager;
   rng: RNG;
   config: Config;
   timeline: Timeline;
@@ -137,6 +140,11 @@ export interface CreateWorldOptions {
    */
   fov: FovProvider;
   path: PathProvider;
+  /**
+   * Factory for the per-level field manager. Injected (impl is sim-only) and
+   * given the assembled `World` so field producers can resolve goal cells.
+   */
+  makeFields: (world: World) => FieldManager;
   /** Extra registries to merge in beyond the engine defaults. */
   registries?: Registries;
 }
@@ -188,10 +196,15 @@ export function createWorld(opts: CreateWorldOptions): World {
     tiles: createTilePalette(),
     fov: opts.fov,
     path: opts.path,
+    // The field manager needs the assembled World (to resolve goal cells), so it
+    // is wired in just below once `world` exists.
+    fields: undefined as unknown as FieldManager,
     rng,
     config: opts.config,
     timeline: opts.makeTimeline(state.timeline, opts.config),
   };
 
-  return { state, services };
+  const world: World = { state, services };
+  services.fields = opts.makeFields(world);
+  return world;
 }

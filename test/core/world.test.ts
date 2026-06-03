@@ -5,12 +5,14 @@ import { makeRng } from '../../src/adapters/rng';
 import { createTimeline } from '../../src/sim/timeline';
 import { makeRotFov } from '../../src/adapters/rot-fov';
 import { makeRotPath } from '../../src/adapters/rot-path';
+import { createFieldManager } from '../../src/sim/ai/field';
 
 const base = {
   config: defaultConfig,
   makeTimeline: createTimeline,
   fov: makeRotFov(),
   path: makeRotPath(),
+  makeFields: createFieldManager,
 };
 
 describe('createWorld', () => {

@@ -34,6 +34,13 @@ export interface Config {
     readonly default: Stance;
     readonly matrix: Readonly<Record<string, Readonly<Record<string, Stance>>>>;
   };
+  /** Field system tuning (§11.3): composite clamp, flee, scent, influence. */
+  readonly fields: {
+    readonly maxDistance: number;
+    readonly fleeCoefficient: number;
+    readonly scent: { readonly deposit: number; readonly decay: number; readonly diffusion: number };
+    readonly influence: { readonly falloffRadius: number };
+  };
 }
 
 export const defaultConfig: Config = {
@@ -52,4 +59,10 @@ export const defaultConfig: Config = {
   inventory: { defaultCapacity: 26 },
   fov: { defaultRadius: 8 },
   factions: { default: 'neutral', matrix: {} },
+  fields: {
+    maxDistance: 1000,
+    fleeCoefficient: -1.2,
+    scent: { deposit: 1, decay: 0.9, diffusion: 0.2 },
+    influence: { falloffRadius: 6 },
+  },
 };

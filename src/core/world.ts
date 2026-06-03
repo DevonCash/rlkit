@@ -147,6 +147,15 @@ export interface CreateWorldOptions {
   makeFields: (world: World) => FieldManager;
   /** Extra registries to merge in beyond the engine defaults. */
   registries?: Registries;
+  /**
+   * Reconstruct over an existing (deserialized) state instead of a fresh empty
+   * one (§16, save/load). When given, services bind to THIS state from the
+   * start (the query index, timeline, and field manager all capture `state`
+   * references at construction), and the stale `state.rng` snapshot is kept
+   * verbatim — the caller is responsible for `services.rng.setState(state.rng)`
+   * and for rebuilding the query index from the restored entities.
+   */
+  initialState?: WorldState;
 }
 
 /** A fresh, empty timeline state. */
@@ -162,9 +171,20 @@ export function emptyTimelineState(): TimelineState {
 export function createWorld(opts: CreateWorldOptions): World {
   const rng: RNG = opts.rng;
 
-  const entities = new Map<EntityId, Entity>();
-  const levels = new Map<string, Level>();
-  const queries: QueryIndex = createQueries(entities);
+  // Choose state first so services bind to the FINAL containers — when
+  // reconstructing (`initialState`), the query index/timeline/fields must
+  // capture the deserialized state, not a throwaway empty one. The fresh path
+  // seeds `state.rng` from the rng; the restore path keeps the saved snapshot.
+  const state: WorldState = opts.initialState ?? {
+    entities: new Map<EntityId, Entity>(),
+    levels: new Map<string, Level>(),
+    timeline: emptyTimelineState(),
+    rng: rng.getState(),
+    turn: 0,
+    nextEntityId: 0,
+  };
+
+  const queries: QueryIndex = createQueries(state.entities);
 
   const registries: Registries = {
     components: createRegistry('component'),
@@ -179,15 +199,6 @@ export function createWorld(opts: CreateWorldOptions): World {
     fields: createRegistry('field'),
     timerEffects: createRegistry('timer-effect'),
     ...opts.registries,
-  };
-
-  const state: WorldState = {
-    entities,
-    levels,
-    timeline: emptyTimelineState(),
-    rng: rng.getState(),
-    turn: 0,
-    nextEntityId: 0,
   };
 
   const services: Services = {

@@ -6,8 +6,20 @@
  * (e.g. the pure-rand RNG) that the core itself must not import.
  */
 import { createWorld as assembleWorld } from './core/world';
-import type { World, CreateWorldOptions } from './core/world';
+import type { World, WorldState, CreateWorldOptions } from './core/world';
 import { makeRng } from './adapters/rng';
+import { encodeState, decodeState } from './adapters/storage';
+import {
+  parseSave,
+  migrate,
+  CURRENT_SCHEMA_VERSION,
+  type SaveBlob,
+  type MigrationTable,
+} from './content/validate';
+import { cellOf } from './core/coords';
+import { get } from './core/entity';
+import type { Position } from './core/component';
+import { defaultConfig } from './config/defaults';
 import { makeRotFov } from './adapters/rot-fov';
 import { makeRotPath } from './adapters/rot-path';
 import { createTimeline } from './sim/timeline';
@@ -302,6 +314,18 @@ export type { LogView } from './ui/log-view';
 export { createSession } from './ui/session';
 export type { Session, SessionOptions } from './ui/session';
 
+// --- save / load (§16) -----------------------------------------------------
+export { CURRENT_SCHEMA_VERSION, parseSave, parseBlueprint, migrate } from './content/validate';
+export type { SaveBlob, Migration, MigrationTable } from './content/validate';
+export {
+  encodeState,
+  decodeState,
+  createMemoryStorage,
+  createStorage,
+  type StorageLike,
+  type Storage,
+} from './adapters/storage';
+
 /** Drive the engine: process turns, rendering after each player turn. */
 export interface RunOptions {
   player: EntityId;
@@ -344,20 +368,13 @@ export interface WorldOptions {
  * Create a world, defaulting the RNG to the pure-rand-backed implementation.
  * Pass a numeric `rng` seed for reproducible runs, or your own `RNG`.
  */
-export function createWorld(opts: WorldOptions): World {
-  const rng: RNG = typeof opts.rng === 'object' ? opts.rng : makeRng(opts.rng ?? 0);
-  const core: CreateWorldOptions = {
-    config: opts.config,
-    rng,
-    makeTimeline: createTimeline,
-    fov: opts.fov ?? makeRotFov(),
-    path: opts.path ?? makeRotPath(),
-    makeFields: createFieldManager,
-    ...(opts.registries ? { registries: opts.registries } : {}),
-  };
-  const world = assembleWorld(core);
-  // Register the built-ins at the composition edge (core may not import sim).
-  // Content can override/extend any of them afterward by id.
+/**
+ * Register the batteries-included content at the composition edge (core may not
+ * import sim). Run for both a fresh {@link createWorld} and a reconstructed
+ * {@link loadWorld}, so a loaded world resolves the same handler/mixin/effect
+ * names its save referenced. Content can override/extend any entry by id after.
+ */
+function registerCoreContent(world: World): void {
   registerCoreHandlers(world.services.registries.handlers as Registry<ActionHandler>);
   registerCoreComponents(world.services.registries.components as ComponentRegistry);
   registerCoreTiles(world.services.tiles, world.services.config.tiles);
@@ -373,5 +390,100 @@ export function createWorld(opts: WorldOptions): World {
   registerCoreConsumableEffects(world.services.registries.consumableEffects as ConsumableEffectRegistry);
   registerCoreTimerEffects(world.services.registries.timerEffects as TimerEffectRegistry);
   world.services.reactors.register(diedReactor);
+}
+
+export function createWorld(opts: WorldOptions): World {
+  const rng: RNG = typeof opts.rng === 'object' ? opts.rng : makeRng(opts.rng ?? 0);
+  const core: CreateWorldOptions = {
+    config: opts.config,
+    rng,
+    makeTimeline: createTimeline,
+    fov: opts.fov ?? makeRotFov(),
+    path: opts.path ?? makeRotPath(),
+    makeFields: createFieldManager,
+    ...(opts.registries ? { registries: opts.registries } : {}),
+  };
+  const world = assembleWorld(core);
+  registerCoreContent(world);
+  return world;
+}
+
+// --- save / load (§16) -----------------------------------------------------
+
+/**
+ * Snapshot a world to a {@link SaveBlob}. Refreshes the canonical `state.rng`
+ * from the live generator first — it is only seeded at construction and goes
+ * stale as the world draws — so the blob captures the current RNG position.
+ */
+export function saveWorld(world: World): SaveBlob {
+  world.state.rng = world.services.rng.getState();
+  return { schemaVersion: CURRENT_SCHEMA_VERSION, world: world.state };
+}
+
+/**
+ * Encode a world to a portable save string: the `schemaVersion`, a newline,
+ * then the devalue-encoded snapshot (same wire format as {@link createStorage}).
+ */
+export function encodeSave(world: World): string {
+  const blob = saveWorld(world);
+  return `${blob.schemaVersion}\n${encodeState(blob.world)}`;
+}
+
+/** Options for {@link loadWorld}. Services/config are reconstructed, not stored. */
+export interface LoadOptions {
+  /** Engine config to rebuild services against (defaults to {@link defaultConfig}). */
+  config?: Config;
+  /** Version→version upgrades applied before validation (defaults to none). */
+  migrations?: MigrationTable;
+  fov?: FovProvider;
+  path?: PathProvider;
+  registries?: Registries;
+}
+
+/**
+ * Reconstruct a world from a save string or a decoded blob (§16): decode →
+ * migrate → validate → rebuild services over the restored state → reseed the
+ * RNG → rebuild the spatial/component index from the restored entities.
+ */
+export function loadWorld(raw: string | unknown, opts: LoadOptions = {}): World {
+  let decoded: unknown;
+  if (typeof raw === 'string') {
+    const nl = raw.indexOf('\n');
+    decoded = { schemaVersion: Number(raw.slice(0, nl)), world: decodeState(raw.slice(nl + 1)) };
+  } else {
+    decoded = raw;
+  }
+  const blob = parseSave(migrate(decoded, opts.migrations ?? {}));
+  const state = blob.world as WorldState;
+
+  const core: CreateWorldOptions = {
+    config: opts.config ?? defaultConfig,
+    rng: makeRng(0), // seed irrelevant — state is restored below
+    makeTimeline: createTimeline,
+    fov: opts.fov ?? makeRotFov(),
+    path: opts.path ?? makeRotPath(),
+    makeFields: createFieldManager,
+    initialState: state,
+    ...(opts.registries ? { registries: opts.registries } : {}),
+  };
+  const world = assembleWorld(core);
+  registerCoreContent(world);
+
+  // Resume the RNG at the saved position so draws continue identically.
+  world.services.rng.setState(state.rng);
+
+  // Rebuild the live query index from the restored entities (it is not part of
+  // the save — only `WorldState` is). Mirrors spawn: index every entity, then
+  // place the positioned ones in the spatial index.
+  const { queries } = world.services;
+  for (const e of state.entities.values()) queries.index(e);
+  for (const e of state.entities.values()) {
+    const pos = get<Position>(e, 'position');
+    if (!pos) continue; // unplaced (e.g. items held in an inventory)
+    const level = state.levels.get(pos.levelId);
+    if (!level) throw new Error(`loadWorld: entity ${e.id} references missing level ${pos.levelId}`);
+    queries.place(e.id, pos.levelId, cellOf({ x: pos.x, y: pos.y }, level.width));
+  }
+
   return world;
 }

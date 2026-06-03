@@ -25,6 +25,7 @@ import {
 import type { Mixin } from './core/mixin';
 import { aiHunterMixin, aiWandererMixin } from './sim/ai/simple';
 import { createFieldManager } from './sim/ai/field';
+import { desireAiMixin } from './sim/ai/desire-ai';
 import { diedReactor } from './sim/death';
 import { bsp } from './mapgen/bsp';
 import type { MapGenerator } from './mapgen/generator';
@@ -277,6 +278,7 @@ export function createWorld(opts: WorldOptions): World {
   mixins.register('equippable', equippableMixin);
   mixins.register('aiHunter', aiHunterMixin);
   mixins.register('aiWanderer', aiWandererMixin);
+  mixins.register('desire-ai', desireAiMixin);
   registerCoreConsumableEffects(world.services.registries.consumableEffects as ConsumableEffectRegistry);
   world.services.reactors.register(diedReactor);
   return world;

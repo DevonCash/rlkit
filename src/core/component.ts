@@ -143,6 +143,15 @@ export const Allegiance = z.object({
 });
 export type Allegiance = z.infer<typeof Allegiance>;
 
+// --- Desire AI (§11.3.5) --------------------------------------------------
+
+/** Weighted desires over fields; weights are data and may change at runtime. */
+export const DesireAIData = z.object({
+  type: z.literal('desire-ai'),
+  desires: z.array(z.object({ fieldId: z.string(), weight: z.number() })),
+});
+export type DesireAIData = z.infer<typeof DesireAIData>;
+
 /** Register the built-in component schemas into a registry. */
 export function registerCoreComponents(reg: ComponentRegistry): void {
   reg.register('position', { type: 'position', schema: Position });
@@ -156,6 +165,7 @@ export function registerCoreComponents(reg: ComponentRegistry): void {
   reg.register('inventory', { type: 'inventory', schema: Inventory });
   reg.register('equipped', { type: 'equipped', schema: Equipped });
   reg.register('allegiance', { type: 'allegiance', schema: Allegiance });
+  reg.register('desire-ai', { type: 'desire-ai', schema: DesireAIData });
 }
 
 // --- Blueprints (content as data, §5.4) ----------------------------------

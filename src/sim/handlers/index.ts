@@ -13,6 +13,8 @@ import { bumpHandler } from './bump';
 import { attackHandler } from './attack';
 import { pickupHandler } from './pickup';
 import { dropHandler } from './drop';
+import { equipHandler } from './equip';
+import { unequipHandler } from './unequip';
 
 export { moveHandler } from './move';
 export { waitHandler } from './wait';
@@ -20,6 +22,8 @@ export { bumpHandler } from './bump';
 export { attackHandler } from './attack';
 export { pickupHandler } from './pickup';
 export { dropHandler } from './drop';
+export { equipHandler } from './equip';
+export { unequipHandler } from './unequip';
 export { makeMoveEffect } from './move';
 
 /** Register the engine's built-in handlers. Call once at world assembly. */
@@ -30,4 +34,6 @@ export function registerCoreHandlers(registry: Registry<ActionHandler>): void {
   registry.register('attack', attackHandler);
   registry.register('pickup', pickupHandler);
   registry.register('drop', dropHandler);
+  registry.register('equip', equipHandler);
+  registry.register('unequip', unequipHandler);
 }

@@ -27,10 +27,17 @@ import { aiHunterMixin, aiWandererMixin } from './sim/ai/simple';
 import { createFieldManager } from './sim/ai/field';
 import { desireAiMixin } from './sim/ai/desire-ai';
 import { diedReactor } from './sim/death';
+import { registerCoreTimerEffects } from './sim/effects';
+import type { TimerEffectRegistry } from './sim/effects';
+import { takeTurn } from './sim/driver';
+import { buildFrame } from './render/frame';
+import type { Renderer } from './render/renderer';
+import type { Camera, Viewport } from './render/camera';
 import { bsp } from './mapgen/bsp';
 import type { MapGenerator } from './mapgen/generator';
 import type { ComponentRegistry } from './core/component';
-import type { ActionHandler } from './core/action';
+import type { Action, ActionHandler } from './core/action';
+import type { EntityId } from './core/entity';
 import type { Registry } from './core/registry';
 import type { RNG } from './core/rng';
 import type { FovProvider } from './core/fov';
@@ -257,6 +264,46 @@ export type { GoalParams, ScentParams, InfluenceParams } from './sim/ai/producer
 export { desireAiMixin } from './sim/ai/desire-ai';
 export { autoexploreStep } from './sim/ai/autoexplore';
 
+// --- presentation: render frame + renderers + driver (§13, §6) -------------
+export { buildFrame } from './render/frame';
+export type { RenderFrame, FrameCell, Overlay } from './render/frame';
+export type { Camera, Viewport } from './render/camera';
+export type { Renderer } from './render/renderer';
+export { AsciiRenderer } from './render/ascii-renderer';
+export { CanvasRenderer } from './render/canvas-renderer';
+export type { Ctx2D, CanvasRendererOptions } from './render/canvas-renderer';
+export { takeTurn, step } from './sim/driver';
+export type { TakeTurnOptions, TurnResult } from './sim/driver';
+export { registerCoreTimerEffects } from './sim/effects';
+export type { TimerEffectRegistry } from './sim/effects';
+export { runReactions } from './sim/action';
+
+/** Drive the engine: process turns, rendering after each player turn. */
+export interface RunOptions {
+  player: EntityId;
+  actionProvider: () => Action | undefined;
+  renderer?: Renderer;
+  viewport?: Viewport;
+  camera?: Camera;
+}
+
+/**
+ * The interactive driver (§18). Loops `takeTurn`, rendering after each player
+ * turn; stops on `idle` or when the action provider yields `undefined`
+ * (awaiting input — M8's async input source resumes here instead of stopping).
+ */
+export function run(world: World, opts: RunOptions): void {
+  const viewport: Viewport = opts.viewport ?? { width: 80, height: 24 };
+  const camera: Camera = opts.camera ?? { centerOn: opts.player };
+  for (;;) {
+    const result = takeTurn(world, { player: opts.player, actionProvider: opts.actionProvider });
+    if (result.kind !== 'acted') break;
+    if (opts.renderer && result.actor === opts.player) {
+      opts.renderer.draw(buildFrame(world, viewport, camera));
+    }
+  }
+}
+
 /** Options for the public {@link createWorld}: a seed or a prebuilt RNG. */
 export interface WorldOptions {
   config: Config;
@@ -300,6 +347,7 @@ export function createWorld(opts: WorldOptions): World {
   mixins.register('aiWanderer', aiWandererMixin);
   mixins.register('desire-ai', desireAiMixin);
   registerCoreConsumableEffects(world.services.registries.consumableEffects as ConsumableEffectRegistry);
+  registerCoreTimerEffects(world.services.registries.timerEffects as TimerEffectRegistry);
   world.services.reactors.register(diedReactor);
   return world;
 }

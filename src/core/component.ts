@@ -69,11 +69,31 @@ export const Stats = z.object({
 });
 export type Stats = z.infer<typeof Stats>;
 
+export const Resources = z.object({
+  type: z.literal('resources'),
+  pools: z.record(z.string(), z.object({ current: z.number() })),
+});
+export type Resources = z.infer<typeof Resources>;
+
+export const Statuses = z.object({
+  type: z.literal('statuses'),
+  active: z.array(
+    z.object({
+      effectId: z.string(),
+      duration: z.number(),
+      stacks: z.number().int().optional(),
+    }),
+  ),
+});
+export type Statuses = z.infer<typeof Statuses>;
+
 /** Register the built-in component schemas into a registry. */
 export function registerCoreComponents(reg: ComponentRegistry): void {
   reg.register('position', { type: 'position', schema: Position });
   reg.register('renderable', { type: 'renderable', schema: Renderable });
   reg.register('stats', { type: 'stats', schema: Stats });
+  reg.register('resources', { type: 'resources', schema: Resources });
+  reg.register('statuses', { type: 'statuses', schema: Statuses });
 }
 
 // --- Blueprints (content as data, §5.4) ----------------------------------

@@ -27,6 +27,8 @@ export interface Config {
     readonly iterations: number;
     readonly threshold: number;
   };
+  /** Drunkard's-walk generator defaults (§8.2); `maxSteps: 0` = derive from area. */
+  readonly drunkard: { readonly coverage: number; readonly maxSteps: number };
   /** Default damage-formula coefficients (§9.3); the formula itself is logic. */
   readonly combat: { readonly minDamage: number; readonly variance: number };
   /** Equipment slot names (§10). */
@@ -74,6 +76,7 @@ export const defaultConfig: Config = {
   ],
   bsp: { minRoomSize: 5, maxDepth: 5 },
   cellular: { wallProb: 0.45, iterations: 4, threshold: 5 },
+  drunkard: { coverage: 0.4, maxSteps: 0 },
   combat: { minDamage: 1, variance: 2 },
   equipment: { slots: ['weapon', 'armor', 'ring'] },
   inventory: { defaultCapacity: 26 },

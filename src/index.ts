@@ -47,6 +47,7 @@ import type { Renderer } from './render/renderer';
 import type { Camera, Viewport } from './render/camera';
 import { bsp } from './mapgen/bsp';
 import { cellular } from './mapgen/cellular';
+import { drunkard } from './mapgen/drunkard';
 import type { MapGenerator } from './mapgen/generator';
 import type { ComponentRegistry } from './core/component';
 import type { Action, ActionHandler } from './core/action';
@@ -201,6 +202,7 @@ export type {
 export { createGeneratorRegistry } from './mapgen/generator';
 export { bsp, generateBsp } from './mapgen/bsp';
 export { cellular, generateCellular } from './mapgen/cellular';
+export { drunkard, generateDrunkard } from './mapgen/drunkard';
 export { decorate, entranceOf } from './mapgen/decorate';
 export { reachableFrom, walkableCells } from './mapgen/reachability';
 export { buildLevel } from './mapgen/build-level';
@@ -385,6 +387,7 @@ function registerCoreContent(world: World): void {
   registerCoreStatuses(world.services.registries.statuses as Registry<StatusDef>, world.services.config.defaultSpeed);
   (world.services.registries.generators as Registry<MapGenerator>).register('bsp', bsp);
   (world.services.registries.generators as Registry<MapGenerator>).register('cellular', cellular);
+  (world.services.registries.generators as Registry<MapGenerator>).register('drunkard', drunkard);
   const mixins = world.services.registries.mixins as Registry<Mixin>;
   mixins.register('equippable', equippableMixin);
   mixins.register('aiHunter', aiHunterMixin);

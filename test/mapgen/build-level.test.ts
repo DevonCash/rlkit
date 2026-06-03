@@ -51,7 +51,7 @@ describe('buildLevel', () => {
 
 // Every registered generator, driven through buildLevel, yields a reachable
 // level with reachable stairs and is reproducible from the world seed.
-const GENERATORS = ['bsp', 'cellular'];
+const GENERATORS = ['bsp', 'cellular', 'drunkard'];
 
 describe.each(GENERATORS)('buildLevel(%s)', (generator) => {
   it('produces a registered, fully-reachable level with reachable stairs', () => {

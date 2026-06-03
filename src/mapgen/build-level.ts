@@ -28,6 +28,8 @@ function configKnobsFor(id: string, config: Config): Record<string, unknown> {
         iterations: config.cellular.iterations,
         threshold: config.cellular.threshold,
       };
+    case 'drunkard':
+      return { coverage: config.drunkard.coverage, maxSteps: config.drunkard.maxSteps };
     default:
       return {};
   }

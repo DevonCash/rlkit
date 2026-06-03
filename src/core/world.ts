@@ -177,6 +177,7 @@ export function createWorld(opts: CreateWorldOptions): World {
     statuses: createRegistry('status'),
     consumableEffects: createRegistry('consumable-effect'),
     fields: createRegistry('field'),
+    timerEffects: createRegistry('timer-effect'),
     ...opts.registries,
   };
 

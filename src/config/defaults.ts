@@ -41,6 +41,15 @@ export interface Config {
     readonly scent: { readonly deposit: number; readonly decay: number; readonly diffusion: number };
     readonly influence: { readonly falloffRadius: number };
   };
+  /** Render frame resolution (§13.1): dim factor for explored, blanks for unseen. */
+  readonly render: {
+    readonly dim: number;
+    readonly defaultBg: string;
+    readonly defaultFg: string;
+    readonly emptyGlyph: string;
+  };
+  /** Message log (§12): event type → template string (payload interpolated). */
+  readonly log: { readonly templates: Readonly<Record<string, string>> };
 }
 
 export const defaultConfig: Config = {
@@ -64,5 +73,13 @@ export const defaultConfig: Config = {
     fleeCoefficient: -1.2,
     scent: { deposit: 1, decay: 0.9, diffusion: 0.2 },
     influence: { falloffRadius: 6 },
+  },
+  render: { dim: 0.45, defaultBg: '#000', defaultFg: '#666', emptyGlyph: ' ' },
+  log: {
+    templates: {
+      moved: '{entity} moves.',
+      damaged: '{entity} takes {amount} damage.',
+      died: '{entity} dies.',
+    },
   },
 };

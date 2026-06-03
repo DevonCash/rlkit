@@ -21,6 +21,19 @@ export default tseslint.config(
   },
   ...tseslint.configs.recommended,
   {
+    // Headless layers must never touch the DOM. `tsconfig.lib` already makes
+    // DOM globals a type error; this is defense-in-depth at lint time.
+    files: ['src/core/**/*.ts', 'src/sim/**/*.ts', 'src/mapgen/**/*.ts'],
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        { name: 'document', message: 'No DOM in headless core/sim/mapgen.' },
+        { name: 'window', message: 'No DOM in headless core/sim/mapgen.' },
+        { name: 'navigator', message: 'No DOM in headless core/sim/mapgen.' },
+      ],
+    },
+  },
+  {
     // core: bottom layer — may not reach rotJS or any layer above it.
     files: ['src/core/**/*.ts'],
     rules: {

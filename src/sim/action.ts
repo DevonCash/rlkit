@@ -117,17 +117,28 @@ export function resolve(world: World, action: Action, depth = 0): ActionOutcome 
 }
 
 /**
- * Resolve `action` and drive the reaction cascade to a fixed point. The normal
- * entry point for performing a turn-taker's action.
+ * Drive a set of events through the reaction cascade to a fixed point (§7.3).
+ * Used for events that arise OUTSIDE an action — `tickActor` (status/regen) and
+ * fired timeline timer-effects — so their reactors fire too. `perform` reuses
+ * the same loop for an action's events.
  */
-export function perform(world: World, action: Action): ActionOutcome {
+export function runReactions(world: World, events: readonly GameEvent[]): void {
+  if (events.length === 0) return;
   const loop = createReactionLoop({
     bus: world.services.bus,
     collectReactions: (event) => collectReactions(world, event),
     resolve: (a) => resolve(world, a),
     maxDepth: world.services.config.maxReactionDepth,
   });
+  loop.run(events);
+}
+
+/**
+ * Resolve `action` and drive the reaction cascade to a fixed point. The normal
+ * entry point for performing a turn-taker's action.
+ */
+export function perform(world: World, action: Action): ActionOutcome {
   const outcome = resolve(world, action);
-  loop.run(outcome.status === 'rejected' ? [] : outcome.events);
+  runReactions(world, outcome.status === 'rejected' ? [] : outcome.events);
   return outcome;
 }

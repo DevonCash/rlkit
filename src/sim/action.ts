@@ -56,6 +56,7 @@ export function resolve(world: World, action: Action): ActionOutcome {
   const ctx: ActionContext = {
     world: view,
     action,
+    effects,
     push(effect) {
       effects.push(effect);
     },

@@ -14,22 +14,24 @@ src/
     entity.ts          # Entity, component accessors
     component.ts       # Component base + registry
     mixin.ts           # Mixin interface + registry + resolution
-    world.ts           # World = { state, services }; ReadonlyWorld view; fork() seam
+    world.ts           # World = { state, services }; ReadonlyWorld view; fork() seam; TimelineState + Timeline interface
     registry.ts        # generic Registry<T> + Registries bag (§6.3)
     query.ts           # entity query/index layer (per-component/mixin id sets)
     coords.ts          # Cell (packed int) + Point helpers (cellOf/pointOf, neighbor offsets)
     level.ts           # Level as a layered grid (typed cell layers over one Cell space)
-    events.ts          # EventBus + reactor dispatch + reaction loop (FIFO, depth guard); typed GameEvent
-    reactor.ts         # Reactor model: (eventType, scope, phase) registration + dispatch
+    action.ts          # Action/Effect/ActionContext/ActionOutcome type declarations (no logic — lives in core so Mixin/Reactor can reference ActionContext)
+    events.ts          # EventBus + createReactionLoop (FIFO, depth guard; resolver-parameterized so core never imports sim); typed GameEvent
+    reactor.ts         # Reactor model: (action/event type, scope, phase) registration + dispatch
     rng.ts             # RNG interface + default (pure-rand-backed), fork/state
     tags.ts            # Tagged component + per-level TagIndex
     geometry.ts        # line, hasLoS, cellsIn (shapes/targeting)
     dice.ts            # roll() — dice expressions over RNG
     weighted.ts        # WeightedTable pick() over RNG
   sim/
-    timeline.ts        # unified timeline (actor turns + one-shot delayed effects); two clocks
-    action.ts          # typed Action/Effect/ActionContext, resolve() (validate-all-then-apply)
-    handlers/          # move, bump, attack, pickup, equip, useItem, ...
+    timeline.ts        # unified timeline impl (actor turns + one-shot delayed effects); two clocks (Timeline interface + TimelineState live in core/world.ts)
+    action.ts          # resolve() (validate-all-then-apply) + perform() (drives reaction loop); spine types declared in core/action.ts and re-exported here
+    reactors.ts        # entity (mixin) + global reactor gathering: runPreReactors / collectReactions
+    handlers/          # move, wait, bump (M2); attack, pickup, equip, useItem, ... (later)
     stats.ts           # stat registry + modifier phase pipeline (deriveStats)
     resources.ts       # resource registry + changeResource (clamp, thresholds, overflow events)
     combat.ts          # damage formula (reads stats, applies hp delta)

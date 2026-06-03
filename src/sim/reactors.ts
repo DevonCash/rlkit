@@ -47,7 +47,11 @@ export function runPreReactors(world: World, ctx: ActionContext): void {
       mixin.onAction?.(ctx, self);
     }
   }
-  for (const r of reactorRegistry(world).pre(ctx.action.type)) r.react(ctx);
+  // Global/system reactors. Entity reactors come from mixins (above); cell/zone
+  // scopes have no dispatch path until triggers/zones land in M11.
+  for (const r of reactorRegistry(world).pre(ctx.action.type)) {
+    if (r.scope === 'global') r.react(ctx);
+  }
 }
 
 /** Gather follow-up actions from post-phase reactors for `event` (entity → global). */
@@ -67,6 +71,7 @@ export function collectReactions(world: World, event: GameEvent): Action[] {
   }
 
   for (const r of reactorRegistry(world).post(event.type)) {
+    if (r.scope !== 'global') continue; // cell/zone: no dispatch path until M11
     const actions = r.react({ event, world });
     if (actions) out.push(...actions);
   }

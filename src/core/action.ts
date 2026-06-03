@@ -50,6 +50,13 @@ export interface Effect {
 export interface ActionContext {
   readonly world: ReadonlyWorld;
   readonly action: Action;
+  /**
+   * The effects queued so far, in push order. Exposed so pre-phase reactors can
+   * inspect and edit pending effects (e.g. an armor reactor reducing a pending
+   * damage effect — §7.2 step 2). Mutating effect internals here is allowed;
+   * the array is the live queue.
+   */
+  readonly effects: Effect[];
   /** Queue an atomic mutation to be validated-then-applied. */
   push(effect: Effect): void;
   /** INVALID: no time passes, no effects apply — re-prompt the player. */

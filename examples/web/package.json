@@ -1,0 +1,15 @@
+{
+  "name": "rlkit-example-web",
+  "private": true,
+  "type": "module",
+  "description": "Playable browser demo for rlkit (separate DOM app — not part of the engine build).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vite": "^7.0.0"
+  }
+}

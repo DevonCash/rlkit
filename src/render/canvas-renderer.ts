@@ -10,9 +10,14 @@
 import type { Renderer } from './renderer';
 import type { RenderFrame } from './frame';
 
-/** The subset of `CanvasRenderingContext2D` this renderer uses (no DOM lib). */
+/**
+ * The subset of `CanvasRenderingContext2D` this renderer uses (no DOM lib). The
+ * fill style is widened (`string | object`) so a real context — whose
+ * `fillStyle` is `string | CanvasGradient | CanvasPattern` — is structurally
+ * assignable; this renderer only ever writes strings to it.
+ */
 export interface Ctx2D {
-  fillStyle: string;
+  fillStyle: string | object;
   font: string;
   textBaseline: string;
   fillRect(x: number, y: number, w: number, h: number): void;

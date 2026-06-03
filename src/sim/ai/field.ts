@@ -102,14 +102,18 @@ function createFieldStore(world: World, level: Level): FieldStore {
   };
 
   function makeCtx(desc: FieldDescriptor): FieldCtx {
-    const source = (desc.params as { source?: GoalSource }).source;
+    const params = desc.params as { source?: GoalSource; passUnexplored?: boolean };
+    // Autoexplore treats undiscovered cells as floor so the frontier is reachable.
+    const explored = params.passUnexplored ? level.layers.get(EXPLORED_LAYER) : undefined;
+    const passable = (c: Cell): boolean =>
+      isWalkable(level, c, palette) || (explored instanceof Uint8Array && explored[c] !== 1);
     return {
       width: level.width,
       height: level.height,
       diagonals: desc.diagonals ?? false,
-      passable: (c) => isWalkable(level, c, palette),
+      passable,
       transparent: (c) => isTransparent(level, c, palette),
-      goalCells: () => resolveSource(source, world, level),
+      goalCells: () => resolveSource(params.source, world, level),
       scratch: () => (scratch ??= new Float32Array(n)),
       rng: world.services.rng,
     };

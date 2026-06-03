@@ -39,6 +39,11 @@ export function isUIIntent(r: Action | UIIntent | undefined): r is UIIntent {
   return r !== undefined && 'ui' in r;
 }
 
+/** The direction of a movement command (`move-*`), or undefined. */
+export function moveDirection(commandType: string): Point | undefined {
+  return MOVE[commandType];
+}
+
 export function commandToAction(cmd: Command, ctx: CommandContext): Action | UIIntent | undefined {
   const dir = MOVE[cmd.type];
   if (dir) return { type: 'bump', actor: ctx.player, dir };

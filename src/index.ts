@@ -100,6 +100,10 @@ export {
 export type { TilePalette } from './core/tiles';
 export { createTilePalette, registerCoreTiles } from './core/tiles';
 
+// --- geometry / targeting (§11A.3) -----------------------------------------
+export { line, hasLoS, cellsIn } from './core/geometry';
+export type { Shape, CellsInOptions } from './core/geometry';
+
 // --- action / effect / reactor / mixin spine (§7.2, §7.3, §5.3) ------------
 export type {
   Action,

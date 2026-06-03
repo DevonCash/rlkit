@@ -31,6 +31,8 @@ import { isWalkable, isTransparent, type Level } from '../../core/level';
 import { EXPLORED_LAYER } from '../visibility';
 import type { World } from '../../core/world';
 import { goalProducer } from './producers/goal';
+import { scentProducer } from './producers/scent';
+import { influenceProducer } from './producers/influence';
 
 /** Goal/source cells for a field, resolved against the world (serialize-by-name). */
 export type GoalSource =
@@ -42,6 +44,8 @@ export const FIELD_LAYER_PREFIX = 'field:';
 
 const PRODUCERS: Partial<Record<FieldKind, FieldProducer>> = {
   goal: goalProducer as FieldProducer,
+  scent: scentProducer as FieldProducer,
+  influence: influenceProducer as FieldProducer,
 };
 
 /** Register a producer for a field kind (scent/influence wired in group 6). */
@@ -134,10 +138,14 @@ function createFieldStore(world: World, level: Level): FieldStore {
       descs.set(desc.id, desc);
       versions.set(desc.id, 0);
       ensureF32(level, FIELD_LAYER_PREFIX + desc.id, n);
-      dirty.add(desc.id);
       for (const ev of desc.invalidateOn ?? []) {
         unsubs.push(world.services.bus.on(ev, () => dirty.add(desc.id)));
       }
+      // perTurn fields (scent, decaying influence) initialize their buffer now so
+      // every later tick() is a step() that accumulates; goal/influence fields
+      // compute lazily on first read.
+      if (desc.perTurn) recompute(desc.id);
+      else dirty.add(desc.id);
     },
     data(id) {
       if (dirty.has(id)) recompute(id);
@@ -183,11 +191,11 @@ function createFieldStore(world: World, level: Level): FieldStore {
       for (const [id, desc] of descs) {
         if (!desc.perTurn) continue;
         const producer = PRODUCERS[desc.kind];
-        if (producer?.step) {
+        if (dirty.has(id) || !producer?.step) {
+          recompute(id); // (re)initialize after an invalidation, or no step()
+        } else {
           producer.step(layerOf(id), makeCtx(desc), desc.params);
           bump(id);
-        } else {
-          recompute(id);
         }
       }
     },

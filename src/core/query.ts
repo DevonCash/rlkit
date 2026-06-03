@@ -121,6 +121,21 @@ export class QueryIndex implements Queries {
     return out;
   }
 
+  /**
+   * Project this level's occupancy as a serializable `cell → occupants` map
+   * (§8.1 `Level.entityIndex`). Deterministic, insertion-stable. The save layer
+   * (M9) calls this to populate `Level.entityIndex`; the live index stays here.
+   */
+  occupantsOf(levelId: string): Map<Cell, EntityId[]> {
+    const prefix = `${levelId}#`;
+    const out = new Map<Cell, EntityId[]>();
+    for (const [key, ids] of this.byCell) {
+      if (!key.startsWith(prefix) || ids.size === 0) continue;
+      out.set(Number(key.slice(prefix.length)), [...ids]);
+    }
+    return out;
+  }
+
   byTag(tag: string): Iterable<EntityId> {
     return this.tags.get(tag);
   }

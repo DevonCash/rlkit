@@ -19,11 +19,13 @@ describe('createWorld', () => {
     expect(w.services.config).toBe(defaultConfig);
   });
 
-  it('provides the engine-default registries', () => {
+  it('provides the engine-default registries and services', () => {
     const w = createWorld({ ...base, rng: makeRng(0) });
-    for (const kind of ['components', 'mixins', 'blueprints', 'tiles', 'handlers']) {
+    for (const kind of ['components', 'mixins', 'blueprints', 'generators', 'handlers']) {
       expect(w.services.registries[kind]).toBeDefined();
     }
+    expect(w.services.tiles).toBeDefined(); // tile palette is a dedicated service
+    expect(w.state.nextEntityId).toBe(0);
   });
 
   it('seeds a deterministic RNG and snapshots its state', () => {

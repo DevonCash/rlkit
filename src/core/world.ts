@@ -17,6 +17,7 @@ import { createEventBus } from './events';
 import { createQueries, type QueryIndex } from './query';
 import { createRegistry, type Registries } from './registry';
 import { createReactorRegistry, type ReactorRegistry } from './reactor';
+import { createTilePalette, type TilePalette } from './tiles';
 
 /** A one-shot delayed effect scheduled on the world clock (§7.1). */
 export type TimerId = number;
@@ -67,6 +68,8 @@ export interface WorldState {
   timeline: TimelineState;
   rng: RNGState;
   turn: number;
+  /** Monotonic counter minting deterministic entity ids (serialize-stable). */
+  nextEntityId: number;
 }
 
 export interface Services {
@@ -81,6 +84,8 @@ export interface Services {
   registries: Registries;
   /** Global/system reactors (entity reactors come from mixins — §7.3). */
   reactors: ReactorRegistry;
+  /** Tile definitions + int↔id mapping for level grids (§8.1). */
+  tiles: TilePalette;
   rng: RNG;
   config: Config;
   timeline: Timeline;
@@ -144,7 +149,7 @@ export function createWorld(opts: CreateWorldOptions): World {
     components: createRegistry('component'),
     mixins: createRegistry('mixin'),
     blueprints: createRegistry('blueprint'),
-    tiles: createRegistry('tile'),
+    generators: createRegistry('generator'),
     handlers: createRegistry('handler'),
     ...opts.registries,
   };
@@ -155,6 +160,7 @@ export function createWorld(opts: CreateWorldOptions): World {
     timeline: emptyTimelineState(),
     rng: rng.getState(),
     turn: 0,
+    nextEntityId: 0,
   };
 
   const services: Services = {
@@ -162,6 +168,7 @@ export function createWorld(opts: CreateWorldOptions): World {
     queries,
     registries,
     reactors: createReactorRegistry(),
+    tiles: createTilePalette(),
     rng,
     config: opts.config,
     timeline: opts.makeTimeline(state.timeline, opts.config),

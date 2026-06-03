@@ -68,3 +68,18 @@ export function registerCoreComponents(reg: ComponentRegistry): void {
   reg.register('position', { type: 'position', schema: Position });
   reg.register('renderable', { type: 'renderable', schema: Renderable });
 }
+
+// --- Blueprints (content as data, §5.4) ----------------------------------
+// A spawnable template: components + behavior mixins + tags. Authored content,
+// so it is schema-first (validated when loaded from untrusted sources). `spawn`
+// deep-clones the components and copies the mixin/tag names by reference.
+
+const ComponentData = z.object({ type: z.string() }).loose();
+
+export const Blueprint = z.object({
+  id: z.string(),
+  components: z.array(ComponentData),
+  mixins: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional(),
+});
+export type Blueprint = z.infer<typeof Blueprint>;

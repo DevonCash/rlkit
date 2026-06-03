@@ -23,6 +23,7 @@ import {
   type ConsumableEffectRegistry,
 } from './sim/items';
 import type { Mixin } from './core/mixin';
+import { aiHunterMixin, aiWandererMixin } from './sim/ai/simple';
 import { diedReactor } from './sim/death';
 import { bsp } from './mapgen/bsp';
 import type { MapGenerator } from './mapgen/generator';
@@ -215,6 +216,25 @@ export {
   useItemHandler,
 } from './sim/handlers';
 
+// --- FOV / AI / factions (§11.1, §11.2, §11A.2) ----------------------------
+export type { FovProvider } from './core/fov';
+export type { PathProvider } from './core/path';
+export { makeRotFov, makeRotPath } from './adapters';
+export type { RotFovOptions, RotPathOptions } from './adapters';
+export { Allegiance, Stance } from './core/component';
+export { stanceBetween } from './sim/factions';
+export type { FactionId } from './sim/factions';
+export {
+  computeVisibility,
+  isVisible,
+  isExplored,
+  VISIBLE_LAYER,
+  EXPLORED_LAYER,
+} from './sim/visibility';
+export { decideAction } from './sim/ai/decide';
+export { aiHunterMixin, aiWandererMixin } from './sim/ai/simple';
+export { canSee, pathToward, nearestHostile } from './sim/ai/helpers';
+
 /** Options for the public {@link createWorld}: a seed or a prebuilt RNG. */
 export interface WorldOptions {
   config: Config;
@@ -251,7 +271,10 @@ export function createWorld(opts: WorldOptions): World {
   registerCoreResources(world.services.registries.resources as Registry<ResourceDef>);
   registerCoreStatuses(world.services.registries.statuses as Registry<StatusDef>, world.services.config.defaultSpeed);
   (world.services.registries.generators as Registry<MapGenerator>).register('bsp', bsp);
-  (world.services.registries.mixins as Registry<Mixin>).register('equippable', equippableMixin);
+  const mixins = world.services.registries.mixins as Registry<Mixin>;
+  mixins.register('equippable', equippableMixin);
+  mixins.register('aiHunter', aiHunterMixin);
+  mixins.register('aiWanderer', aiWandererMixin);
   registerCoreConsumableEffects(world.services.registries.consumableEffects as ConsumableEffectRegistry);
   world.services.reactors.register(diedReactor);
   return world;

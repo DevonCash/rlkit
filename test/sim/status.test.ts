@@ -15,12 +15,12 @@ import { defaultConfig } from '../../src/config/defaults';
 type W = ReturnType<typeof createWorld>;
 function world(): W {
   const w = createWorld({ config: defaultConfig, rng: 1 });
-  (w.services.registries.stats as Registry<StatDef>).register('speed', { id: 'speed', default: 10 });
-  (w.services.registries.stats as Registry<StatDef>).register('max-hp', { id: 'max-hp', default: 20 });
-  (w.services.registries.resources as Registry<ResourceDef>).register('hp', { id: 'hp', max: 'max-hp' });
+  (w.services.registries.stats as Registry<StatDef>).override('speed', { id: 'speed', default: 10 });
+  (w.services.registries.stats as Registry<StatDef>).override('max-hp', { id: 'max-hp', default: 20 });
+  (w.services.registries.resources as Registry<ResourceDef>).override('hp', { id: 'hp', max: 'max-hp' });
   const statuses = w.services.registries.statuses as Registry<StatusDef>;
-  statuses.register('haste', { id: 'haste', modifiers: [{ stat: 'speed', phase: 'add', amount: 10 }] });
-  statuses.register('poison', { id: 'poison', onTick: { resourceId: 'hp', amount: -2, cause: 'damage' }, onExpire: 'poison:ended' });
+  statuses.override('haste', { id: 'haste', modifiers: [{ stat: 'speed', phase: 'add', amount: 10 }] });
+  statuses.override('poison', { id: 'poison', onTick: { resourceId: 'hp', amount: -2, cause: 'damage' }, onExpire: 'poison:ended' });
   return w;
 }
 const hpOf = (e: Entity) => get<Resources>(e, 'resources')!.pools.hp!.current;

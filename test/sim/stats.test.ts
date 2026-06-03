@@ -54,7 +54,7 @@ describe('deriveStats — phase order (§22.7)', () => {
 describe('deriveStats — sources, removal, clamps (§22.7)', () => {
   it('reflects a status modifier and updates when removed', () => {
     const w = world();
-    (w.services.registries.statuses as Registry<{ id: string; modifiers?: StatModifier[] }>).register(
+    (w.services.registries.statuses as Registry<{ id: string; modifiers?: StatModifier[] }>).override(
       'haste',
       { id: 'haste', modifiers: [{ stat: 'speed', phase: 'add', amount: 10 }] },
     );
@@ -84,7 +84,7 @@ describe('deriveStats — sources, removal, clamps (§22.7)', () => {
 
   it('stacks multiply a status modifier', () => {
     const w = world();
-    (w.services.registries.statuses as Registry<{ id: string; modifiers?: StatModifier[] }>).register(
+    (w.services.registries.statuses as Registry<{ id: string; modifiers?: StatModifier[] }>).override(
       'might',
       { id: 'might', modifiers: [{ stat: 'attack', phase: 'add', amount: 2 }] },
     );

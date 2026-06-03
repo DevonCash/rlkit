@@ -25,6 +25,8 @@ interface StatModifier { stat: string; phase: 'add' | 'mul'; amount: number; }
 
 Modifiers are gathered in mixin declaration order (§21, decision 5) but **applied in a fixed phase order — `base → additive → multiplicative → clamp`** — so a `+5` and a `×1.2` never fight over sequence. The phase order is logic; the modifier amounts and clamp bounds are configurable.
 
+> **Implementation note (M4):** `Mixin.modifyStats` *contributes* `StatModifier[]` (signature `modifyStats?(self, world): StatModifier[]`) rather than mutating a `StatBlock` — that is what makes the phase pipeline order-independent (§22.7). `deriveStats` gathers contributions from mixins and active statuses (and equipment, §10), groups by stat, then applies `base → Σadd → Πmul → clamp`. Base values come from a `stats` component (`{type:'stats', base}`) or the `StatDef.default`; clamp bounds (`min`/`max`) live on the `StatDef` (content).
+
 ### 9.2 Resources — bounded pools
 
 A registry of named resources; any resource is content. A resource's `max` is a **stat**, so a +10 max-HP ring flows through the stat pipeline automatically; the pool just re-clamps when stats change.
@@ -61,7 +63,7 @@ Excess/deficit is **clamped-and-lost by default**, but the event lets content re
 
 The **`cause` discriminator** matters because the same clamp happens for different reasons and reactions should differ. When a `max` stat drops below `current` (a max-HP buff expires), re-clamping emits `resource:overflow` with `cause: 'max-reduced'` — distinct from `cause: 'restore'`, so a debuff never accidentally grants a shield. Causes are an open set: `'restore' | 'spend' | 'damage' | 'regen' | 'max-reduced' | …`.
 
-**Action costs** reuse this: a handler declares resource costs (a spell costs mana); `onAction` cancels if the pool is insufficient, otherwise spends it with `cause: 'spend'`.
+**Action costs** reuse this: a handler declares resource costs (a spell costs mana) by pushing a `changeResourceEffect(..., 'spend', { requireSufficient: true })`. Its `validate` returns false when the pool can't cover the cost, so the action is **rejected atomically** (no time passes) — the idiomatic mechanism in this engine. *(Implementation note (M4): the §9.2 prose originally said `onAction` cancels; rejection via the effect's `validate` is equivalent and matches validate-all-then-apply.)*
 
 ### 9.3 Combat — a consumer of the primitives
 

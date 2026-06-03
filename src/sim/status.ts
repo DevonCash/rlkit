@@ -45,6 +45,17 @@ function statusReg(world: World): StatusDefRegistry | undefined {
   return world.services.registries.statuses as StatusDefRegistry | undefined;
 }
 
+/** Register the batteries-included proof status defs (overridable content). */
+export function registerCoreStatuses(reg: StatusDefRegistry, hasteSpeed: number): void {
+  reg.register('poison', {
+    id: 'poison',
+    onTick: { resourceId: 'hp', amount: -1, cause: 'damage' },
+    onExpire: 'status:expired',
+  });
+  reg.register('regen', { id: 'regen', onTick: { resourceId: 'hp', amount: 1, cause: 'regen' } });
+  reg.register('haste', { id: 'haste', modifiers: [{ stat: 'speed', phase: 'add', amount: hasteSpeed }] });
+}
+
 /** An effect that applies (or refreshes) a status on an entity. */
 export function applyStatusEffect(
   entityId: string,

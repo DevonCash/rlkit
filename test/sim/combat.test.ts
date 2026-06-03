@@ -13,10 +13,10 @@ import { defaultConfig } from '../../src/config/defaults';
 type W = ReturnType<typeof createWorld>;
 function world(seed = 1): W {
   const w = createWorld({ config: defaultConfig, rng: seed });
-  (w.services.registries.stats as Registry<StatDef>).register('max-hp', { id: 'max-hp', default: 20 });
-  (w.services.registries.stats as Registry<StatDef>).register('attack', { id: 'attack', default: 0 });
-  (w.services.registries.stats as Registry<StatDef>).register('defense', { id: 'defense', default: 0 });
-  (w.services.registries.resources as Registry<ResourceDef>).register('hp', {
+  (w.services.registries.stats as Registry<StatDef>).override('max-hp', { id: 'max-hp', default: 20 });
+  (w.services.registries.stats as Registry<StatDef>).override('attack', { id: 'attack', default: 0 });
+  (w.services.registries.stats as Registry<StatDef>).override('defense', { id: 'defense', default: 0 });
+  (w.services.registries.resources as Registry<ResourceDef>).override('hp', {
     id: 'hp',
     max: 'max-hp',
     thresholds: [{ at: 0, emit: 'died' }],

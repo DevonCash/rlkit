@@ -15,8 +15,8 @@ function world() {
   return createWorld({ config: defaultConfig, rng: 1 });
 }
 function defineHp(w: W, def: Partial<ResourceDef> = {}) {
-  (w.services.registries.stats as Registry<StatDef>).register('max-hp', { id: 'max-hp', default: 20 });
-  (w.services.registries.resources as Registry<ResourceDef>).register('hp', {
+  (w.services.registries.stats as Registry<StatDef>).override('max-hp', { id: 'max-hp', default: 20 });
+  (w.services.registries.resources as Registry<ResourceDef>).override('hp', {
     id: 'hp',
     max: 'max-hp',
     thresholds: [{ at: 0, emit: 'died' }],
@@ -104,8 +104,8 @@ describe('changeResource — events & causes (§22.7)', () => {
 describe('resource cost rejection (§22.7)', () => {
   it('rejects an action whose cost exceeds the pool', () => {
     const w = world();
-    (w.services.registries.stats as Registry<StatDef>).register('max-mana', { id: 'max-mana', default: 10 });
-    (w.services.registries.resources as Registry<ResourceDef>).register('mana', { id: 'mana', max: 'max-mana' });
+    (w.services.registries.stats as Registry<StatDef>).override('max-mana', { id: 'max-mana', default: 10 });
+    (w.services.registries.resources as Registry<ResourceDef>).override('mana', { id: 'mana', max: 'max-mana' });
     const caster = createEntity('c', [
       { type: 'stats', base: { 'max-mana': 10 } },
       { type: 'resources', pools: { mana: { current: 3 } } },

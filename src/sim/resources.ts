@@ -87,6 +87,11 @@ export function changeResource(
   return events;
 }
 
+/** Register the batteries-included default resource defs (overridable content). */
+export function registerCoreResources(reg: ResourceDefRegistry): void {
+  reg.register('hp', { id: 'hp', max: 'max-hp', thresholds: [{ at: 0, emit: 'died' }] });
+}
+
 export interface ChangeResourceOptions {
   /** Reject the action (via validate) if the pool can't cover a negative delta. */
   requireSufficient?: boolean;

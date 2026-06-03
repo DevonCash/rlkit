@@ -93,3 +93,11 @@ export function deriveStats(e: Entity, world: ReadonlyWorld): StatBlock {
 export function deriveStat(e: Entity, world: ReadonlyWorld, id: string): number {
   return deriveStats(e, world)[id] ?? 0;
 }
+
+/** Register the batteries-included default stat defs (overridable content). */
+export function registerCoreStats(reg: StatDefRegistry, defaultSpeed: number): void {
+  reg.register('max-hp', { id: 'max-hp', default: 10, min: 0 });
+  reg.register('attack', { id: 'attack', default: 1, min: 0 });
+  reg.register('defense', { id: 'defense', default: 0, min: 0 });
+  reg.register('speed', { id: 'speed', default: defaultSpeed, min: 1 });
+}

@@ -42,6 +42,7 @@ describe('createWorld', () => {
       registries: {
         statuses: {
           register() {},
+          override() {},
           get: () => 0,
           tryGet: () => undefined,
           has: () => false,

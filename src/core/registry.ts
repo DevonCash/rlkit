@@ -9,6 +9,8 @@
 
 export interface Registry<T> {
   register(id: string, def: T): void;
+  /** Register or replace by id — the intentional way for content to override a built-in. */
+  override(id: string, def: T): void;
   get(id: string): T;
   /** Non-throwing lookup. */
   tryGet(id: string): T | undefined;
@@ -32,6 +34,9 @@ export function createRegistry<T>(kind = 'item'): Registry<T> {
       if (defs.has(id)) {
         throw new Error(`Registry(${kind}): id "${id}" already registered`);
       }
+      defs.set(id, def);
+    },
+    override(id, def) {
       defs.set(id, def);
     },
     get(id) {

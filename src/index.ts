@@ -12,6 +12,9 @@ import { createTimeline } from './sim/timeline';
 import { registerCoreHandlers } from './sim/handlers';
 import { registerCoreTiles } from './core/tiles';
 import { registerCoreComponents } from './core/component';
+import { registerCoreStats, type StatDef } from './sim/stats';
+import { registerCoreResources, type ResourceDef } from './sim/resources';
+import { registerCoreStatuses, type StatusDef } from './sim/status';
 import { diedReactor } from './sim/death';
 import { bsp } from './mapgen/bsp';
 import type { MapGenerator } from './mapgen/generator';
@@ -171,6 +174,19 @@ export type { BuildLevelParams, BuiltLevel } from './mapgen/build-level';
 export { spawn } from './sim/spawn';
 export type { SpawnOptions } from './sim/spawn';
 
+// --- stats / resources / combat / status (§9) ------------------------------
+export type { StatBlock, StatModifier } from './core/stats';
+export { Stats, Resources, Statuses } from './core/component';
+export { deriveStats, deriveStat, registerCoreStats } from './sim/stats';
+export type { StatDef, StatDefRegistry } from './sim/stats';
+export { changeResource, changeResourceEffect, registerCoreResources } from './sim/resources';
+export type { ResourceDef, ResourceDefRegistry, ResourceEffect, Threshold } from './sim/resources';
+export { defaultDamageFormula } from './sim/combat';
+export type { DamageFormula, DamageResult } from './sim/combat';
+export { applyStatusEffect, tickActor, registerCoreStatuses } from './sim/status';
+export type { StatusDef, StatusDefRegistry } from './sim/status';
+export { diedReactor } from './sim/death';
+
 /** Options for the public {@link createWorld}: a seed or a prebuilt RNG. */
 export interface WorldOptions {
   config: Config;
@@ -197,6 +213,9 @@ export function createWorld(opts: WorldOptions): World {
   registerCoreHandlers(world.services.registries.handlers as Registry<ActionHandler>);
   registerCoreComponents(world.services.registries.components as ComponentRegistry);
   registerCoreTiles(world.services.tiles, world.services.config.tiles);
+  registerCoreStats(world.services.registries.stats as Registry<StatDef>, world.services.config.defaultSpeed);
+  registerCoreResources(world.services.registries.resources as Registry<ResourceDef>);
+  registerCoreStatuses(world.services.registries.statuses as Registry<StatusDef>, world.services.config.defaultSpeed);
   (world.services.registries.generators as Registry<MapGenerator>).register('bsp', bsp);
   world.services.reactors.register(diedReactor);
   return world;

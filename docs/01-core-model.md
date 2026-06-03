@@ -68,8 +68,11 @@ interface Mixin {
   onAction?(ctx: ActionContext, self: Entity): void;
   //   onEvent  = post-phase, gets a read-only fact, may enqueue reactions
   onEvent?(ev: GameEvent, self: Entity, world: ReadonlyWorld): Action[] | void;
-  // modifyStats is NOT a reactor — it's a pure contribution to a derived value (§9.1)
-  modifyStats?(block: StatBlock, self: Entity): void;
+  // modifyStats is NOT a reactor — it's a pure contribution to a derived value (§9.1).
+  // Revised (M4): it CONTRIBUTES typed modifiers rather than mutating a block, so
+  // deriveStats can apply them in fixed phase order (base→add→mul→clamp) and the
+  // result is independent of gather order (§22.7).
+  modifyStats?(self: Entity, world: ReadonlyWorld): StatModifier[];
 }
 ```
 

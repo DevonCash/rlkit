@@ -87,6 +87,49 @@ export const Statuses = z.object({
 });
 export type Statuses = z.infer<typeof Statuses>;
 
+// --- Items, inventory, equipment (§10) -----------------------------------
+// Items are entities with item-flavored components, so a sword on the floor and
+// a sword in a pack are the same object. `stackable`/`qty` exist now; stacking
+// logic is deferred (see roadmap follow-ups).
+
+export const Item = z.object({
+  type: z.literal('item'),
+  name: z.string(),
+  stackable: z.boolean(),
+  qty: z.number().int(),
+  weight: z.number().optional(),
+});
+export type Item = z.infer<typeof Item>;
+
+export const Equipment = z.object({
+  type: z.literal('equipment'),
+  slot: z.string(),
+  bonuses: z.record(z.string(), z.number()), // Partial<StatBlock>, additive
+});
+export type Equipment = z.infer<typeof Equipment>;
+
+export const Consumable = z.object({
+  type: z.literal('consumable'),
+  uses: z.number().int(),
+  effect: z.string(), // consumable-effect id (magnitude encoded in the id)
+});
+export type Consumable = z.infer<typeof Consumable>;
+
+/** Carrier component: the item entity ids being held. */
+export const Inventory = z.object({
+  type: z.literal('inventory'),
+  items: z.array(z.string()),
+  capacity: z.number().int().optional(),
+});
+export type Inventory = z.infer<typeof Inventory>;
+
+/** Carrier component: which item is worn in each named slot. */
+export const Equipped = z.object({
+  type: z.literal('equipped'),
+  slots: z.record(z.string(), z.string()), // slot → itemId
+});
+export type Equipped = z.infer<typeof Equipped>;
+
 /** Register the built-in component schemas into a registry. */
 export function registerCoreComponents(reg: ComponentRegistry): void {
   reg.register('position', { type: 'position', schema: Position });
@@ -94,6 +137,11 @@ export function registerCoreComponents(reg: ComponentRegistry): void {
   reg.register('stats', { type: 'stats', schema: Stats });
   reg.register('resources', { type: 'resources', schema: Resources });
   reg.register('statuses', { type: 'statuses', schema: Statuses });
+  reg.register('item', { type: 'item', schema: Item });
+  reg.register('equipment', { type: 'equipment', schema: Equipment });
+  reg.register('consumable', { type: 'consumable', schema: Consumable });
+  reg.register('inventory', { type: 'inventory', schema: Inventory });
+  reg.register('equipped', { type: 'equipped', schema: Equipped });
 }
 
 // --- Blueprints (content as data, §5.4) ----------------------------------

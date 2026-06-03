@@ -154,6 +154,7 @@ export function createWorld(opts: CreateWorldOptions): World {
     stats: createRegistry('stat'),
     resources: createRegistry('resource'),
     statuses: createRegistry('status'),
+    consumableEffects: createRegistry('consumable-effect'),
     ...opts.registries,
   };
 

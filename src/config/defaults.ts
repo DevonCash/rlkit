@@ -22,6 +22,10 @@ export interface Config {
   readonly bsp: { readonly minRoomSize: number; readonly maxDepth: number };
   /** Default damage-formula coefficients (§9.3); the formula itself is logic. */
   readonly combat: { readonly minDamage: number; readonly variance: number };
+  /** Equipment slot names (§10). */
+  readonly equipment: { readonly slots: readonly string[] };
+  /** Inventory limits (§10): default item-count cap + optional carry-weight cap. */
+  readonly inventory: { readonly defaultCapacity: number; readonly maxCarryWeight?: number };
 }
 
 export const defaultConfig: Config = {
@@ -36,4 +40,6 @@ export const defaultConfig: Config = {
   ],
   bsp: { minRoomSize: 5, maxDepth: 5 },
   combat: { minDamage: 1, variance: 2 },
+  equipment: { slots: ['weapon', 'armor', 'ring'] },
+  inventory: { defaultCapacity: 26 },
 };

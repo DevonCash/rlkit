@@ -17,7 +17,8 @@ const layer = (name) => [`**/${name}/**`, `**/${name}`];
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'node_modules/**'],
+    // examples/web is a separate DOM app with its own toolchain (§20.8, Option C).
+    ignores: ['dist/**', 'node_modules/**', 'examples/**'],
   },
   ...tseslint.configs.recommended,
   {

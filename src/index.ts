@@ -280,6 +280,28 @@ export { runReactions } from './sim/action';
 export { createMessageLog } from './ui/log';
 export type { MessageLog } from './ui/log';
 
+// --- input + UI stack (§14, §15) -------------------------------------------
+export type { Command, InputSource, Keymap } from './input/command';
+export { mapKey } from './input/keymap';
+export { KeyboardInput, keyComboOf } from './input/input';
+export type { KeyLikeEvent, EventTargetLike } from './input/input';
+export { PointerInput } from './input/pointer';
+export type { PointerInputOptions } from './input/pointer';
+export { commandToAction, isUIIntent, moveDirection } from './input/command-to-action';
+export type { UIIntent, CommandContext } from './input/command-to-action';
+export { createUIStack } from './ui/stack';
+export type { Modal, ModalResult, UIStack } from './ui/stack';
+export { createListModal } from './ui/modals/list-modal';
+export type { ListModal, ListItem } from './ui/modals/list-modal';
+export { createTargetingModal } from './ui/modals/targeting-modal';
+export type { TargetingModal } from './ui/modals/targeting-modal';
+export { createHud } from './ui/hud';
+export type { Hud } from './ui/hud';
+export { createLogView } from './ui/log-view';
+export type { LogView } from './ui/log-view';
+export { createSession } from './ui/session';
+export type { Session, SessionOptions } from './ui/session';
+
 /** Drive the engine: process turns, rendering after each player turn. */
 export interface RunOptions {
   player: EntityId;

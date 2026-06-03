@@ -22,14 +22,14 @@ export interface ListModalOptions<T> {
   onCancel?(): void;
 }
 
-export interface ListModal<T> extends Modal {
+export interface ListModal extends Modal {
   /** The highlighted index (for tests/inspection). */
   selectedIndex(): number;
 }
 
 const BG: FrameCell = { glyph: ' ', fg: '#888', bg: '#001' };
 
-export function createListModal<T>(opts: ListModalOptions<T>): ListModal<T> {
+export function createListModal<T>(opts: ListModalOptions<T>): ListModal {
   let selected = 0;
   const count = opts.items.length;
 

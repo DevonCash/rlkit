@@ -1,6 +1,6 @@
 import { createWorld } from '../../src/index';
 import type { World } from '../../src/core/world';
-import type { Level } from '../../src/core/level';
+import { createLevel, type Level } from '../../src/core/level';
 import { createEntity, set } from '../../src/core/entity';
 import type { Entity, EntityId } from '../../src/core/entity';
 import { cellOf } from '../../src/core/coords';
@@ -8,9 +8,9 @@ import { defaultConfig } from '../../src/config/defaults';
 import type { ActionHandler } from '../../src/core/action';
 import type { Registry } from '../../src/core/registry';
 
-/** A bare level (data only — tiles/generators arrive in M3). */
+/** A real level filled with floor (index 1, registered by the default config). */
 export function makeLevel(id: string, width: number, height: number): Level {
-  return { id, width, height, layers: new Map(), entityIndex: new Map(), metadata: {} };
+  return createLevel(id, width, height, 1);
 }
 
 export function makeWorld(seed = 1): World {

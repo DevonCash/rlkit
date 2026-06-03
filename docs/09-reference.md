@@ -13,7 +13,9 @@ src/
   core/
     entity.ts          # Entity, component accessors
     component.ts       # Component base + registry
-    mixin.ts           # Mixin interface + registry + resolution
+    mixin.ts           # Mixin interface (onAction/onEvent/modifyStats/takeTurn) + registry + resolution
+    fov.ts             # FovProvider interface (rotJS impl injected from adapters/) — §11.1
+    path.ts            # PathProvider interface (rotJS impl injected from adapters/) — §11.1
     world.ts           # World = { state, services }; ReadonlyWorld view; fork() seam; TimelineState + Timeline interface
     registry.ts        # generic Registry<T> + Registries bag (§6.3)
     query.ts           # entity query/index layer (per-component/mixin id sets)

@@ -33,7 +33,11 @@ interface Allegiance extends Component {            // schema-first (§16.4)
   faction: FactionId;
   overrides?: Record<EntityId, Stance>;             // charm, fear, personal grudge
 }
-interface FactionTable { stance(a: FactionId, b: FactionId): Stance; }   // config matrix
+// Revised (M6): the faction table is plain config DATA (not a live closure, per
+// §3/§16) — `config.factions = { default: Stance; matrix: Record<FactionId,
+// Record<FactionId, Stance>> }`. `stanceBetween` resolves it: a's override for
+// b's id wins, else matrix[a.faction][b.faction], else default. Directional —
+// neither matrix nor overrides are symmetrized.
 function stanceBetween(world: World, a: Entity, b: Entity): Stance;      // override beats matrix
 ```
 

@@ -11,8 +11,14 @@
 ### 11.1 Adapter interfaces (rotJS lives behind these)
 
 ```ts
+// Revised (M6): FOV returns packed Cell ids, not "x,y" strings — the visibility
+// layer is a Uint8Array keyed by Cell (§8.1), so returning Cells avoids string
+// repacking on the per-turn hot path. `width` is passed so the wrapper can pack.
+// The interfaces live in core (core/fov.ts, core/path.ts) so sim can consume
+// them without importing adapters; the rotJS impls are injected at the edge
+// (the RNG precedent). Out-of-bounds cells must read as opaque/impassable.
 interface FovProvider {
-  compute(origin: Point, radius: number, isTransparent: (p: Point) => boolean): Set<string>; // visible "x,y"
+  compute(origin: Point, radius: number, isTransparent: (p: Point) => boolean, width: number): Set<Cell>;
 }
 interface PathProvider {
   path(from: Point, to: Point, isPassable: (p: Point) => boolean): Point[];
@@ -31,7 +37,7 @@ The FOV and pathfinding adapters wrap `ROT.FOV.PreciseShadowcasting`/`RecursiveS
 
 ### 11.2 AI
 
-AI is mixin-driven. When the timeline gives an AI entity a turn, its AI mixin (`AIWanderer`, `AIHunter`, `AIRanged`, …) inspects the world (FOV to the player, pathing) and returns an `Action`. Behaviors are small and composable; a "smart guard" is a stack of mixins with a priority order. Shared helpers (`pathToward`, `fleeFrom`, `canSee`) use the adapters.
+AI is mixin-driven. When the timeline gives an AI entity a turn, its AI mixin (`AIWanderer`, `AIHunter`, `AIRanged`, …) inspects the world and returns an `Action`. The hook is `Mixin.takeTurn?(self, world): Action | undefined` (added in M6); `decideAction(world, id)` iterates the entity's mixins in declared order and returns the **first non-`undefined`** — so a "smart guard" is a stack of AI mixins with a priority order, and `undefined` means "I decline, try the next." (The driver feeds the chosen action to `resolve`/`perform`; until the driver exists, `decideAction` is tested directly.) Shared helpers (`pathToward`, `nearestHostile`, `canSee`) use the adapters. AIHunter attacks by returning a `bump` (its redirect becomes an attack), reusing the player's "step or fight" path.
 
 For anything beyond simple chase/flee, the recommended path is the field system (§11.3) and the `DesireAI` mixin, which expresses rich behavior as data (weighted desires over goal/scent/influence fields) rather than hand-written state machines.
 

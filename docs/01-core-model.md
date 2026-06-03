@@ -73,6 +73,9 @@ interface Mixin {
   // deriveStats can apply them in fixed phase order (base→add→mul→clamp) and the
   // result is independent of gather order (§22.7).
   modifyStats?(self: Entity, world: ReadonlyWorld): StatModifier[];
+  // takeTurn (added M6) is the AI hook (§11.2): decide this entity's action on
+  // its turn, or return undefined to let the next AI mixin (priority stack) try.
+  takeTurn?(self: Entity, world: ReadonlyWorld): Action | undefined;
 }
 ```
 

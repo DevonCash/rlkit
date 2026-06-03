@@ -66,15 +66,17 @@ describe('bump handler', () => {
     expect([...w.services.queries.at(cellOf({ x: 1, y: 1 }, 6), 'L')]).toEqual(['ally']);
   });
 
-  it('fizzles when blocked by a non-swappable occupant (no attack handler)', () => {
+  it('redirects to attack against a non-swappable occupant (rejected when it has no hp)', () => {
+    // The engine now ships an 'attack' handler, so bumping an occupant becomes
+    // an attack. A target with no hp pool can't be damaged → the attack's
+    // effect fails validation → rejected, and the hero does not move.
     const w = makeWorld();
     w.state.levels.set('L', makeLevel('L', 6, 6));
     spawnAt(w, 'hero', 'L', 1, 1);
-    spawnAt(w, 'wall-guy', 'L', 2, 1);
+    spawnAt(w, 'statue', 'L', 2, 1);
 
     const out = resolve(w, { type: 'bump', actor: 'hero', dir: { x: 1, y: 0 } });
-    expect(out.status).toBe('fizzled');
-    // hero did not move
+    expect(out.status).toBe('rejected');
     expect(get<Position>(w.state.entities.get('hero')!, 'position')!.x).toBe(1);
   });
 });

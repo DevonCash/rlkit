@@ -17,13 +17,47 @@ import { createEventBus } from './events';
 import { createQueries, type QueryIndex, type Queries } from './query';
 import { createRegistry, type Registries } from './registry';
 
+/** A one-shot delayed effect scheduled on the world clock (§7.1). */
+export type TimerId = number;
+
 /**
- * Pending turns + delayed effects (§7.1). Placeholder in M1 — the unified
- * timeline (two clocks, scheduled effects) is built in milestone 2.
+ * Serializable timeline state (§7.1): actor turns (recurring, energy-based) and
+ * one-shot delayed effects, plus both clocks. Stored as arrays (insertion
+ * order, devalue-friendly); the `Timeline` service sorts deterministically on
+ * read. Effects are referenced by `effectId` (serialize-by-name, §6.3).
  */
 export interface TimelineState {
-  /** World-clock tick count; entries arrive with the M2 timeline. */
-  clock: number;
+  /** World clock — advances once per global turn (§7.3). */
+  worldClock: number;
+  actors: { id: EntityId; energy: number; speed: number; clock: number }[];
+  timers: { fireAt: number; effectId: string; payload?: unknown; seq: TimerId }[];
+  /** Monotonic counter for deterministic timer tie-breaking + ids. */
+  nextSeq: number;
+}
+
+/** The next entry due on the timeline. */
+export type Entry =
+  | { kind: 'actor'; id: EntityId }
+  | { kind: 'effect'; effectId: string; payload?: unknown };
+
+/**
+ * The timeline service — operates on `state.timeline`. The implementation lives
+ * in `sim/timeline.ts`; this interface lives in core so `Services` can name it
+ * without importing `sim` (the impl is injected at construction, like the RNG).
+ */
+export interface Timeline {
+  addActor(id: EntityId, speed?: number): void;
+  remove(id: EntityId): void;
+  schedule(delay: number, effectId: string, payload?: unknown): TimerId;
+  cancel(id: TimerId): void;
+  /** The next entry due; advances the world clock as needed (does not spend energy). */
+  next(): Entry;
+  /** An actor acted: spend `cost` energy and advance its per-actor clock. */
+  reschedule(id: EntityId, cost: number): void;
+  /** Current world clock. */
+  readonly worldClock: number;
+  /** Per-actor clock for `id` (status/regen/cooldowns tick on this). */
+  clockOf(id: EntityId): number;
 }
 
 export interface WorldState {
@@ -40,7 +74,7 @@ export interface Services {
   registries: Registries;
   rng: RNG;
   config: Config;
-  // timeline: Timeline — added in milestone 2 (operates on state.timeline).
+  timeline: Timeline;
 }
 
 export interface World {
@@ -70,13 +104,25 @@ export interface CreateWorldOptions {
    * at the public edge (`src/index.ts`), keeping the core adapter-free.
    */
   rng: RNG;
+  /**
+   * Factory for the `Timeline` service over `state.timeline`. Injected for the
+   * same reason as the RNG: the implementation lives in `sim/timeline.ts` and
+   * `core` may not import it. The public `createWorld` (`src/index.ts`) supplies
+   * the default.
+   */
+  makeTimeline: (state: TimelineState, config: Config) => Timeline;
   /** Extra registries to merge in beyond the engine defaults. */
   registries?: Registries;
 }
 
+/** A fresh, empty timeline state. */
+export function emptyTimelineState(): TimelineState {
+  return { worldClock: 0, actors: [], timers: [], nextSeq: 0 };
+}
+
 /**
- * Wire a minimal world: services (bus, queries, registries, rng) over empty
- * state. Spawning, levels, and the timeline loop are layered on in later
+ * Wire a world: services (bus, queries, registries, rng, timeline) over empty
+ * state. Spawning, levels, and the driver loop are layered on in later
  * milestones; this is the construction seam they build against.
  */
 export function createWorld(opts: CreateWorldOptions): World {
@@ -91,13 +137,14 @@ export function createWorld(opts: CreateWorldOptions): World {
     mixins: createRegistry('mixin'),
     blueprints: createRegistry('blueprint'),
     tiles: createRegistry('tile'),
+    handlers: createRegistry('handler'),
     ...opts.registries,
   };
 
   const state: WorldState = {
     entities,
     levels,
-    timeline: { clock: 0 },
+    timeline: emptyTimelineState(),
     rng: rng.getState(),
     turn: 0,
   };
@@ -108,6 +155,7 @@ export function createWorld(opts: CreateWorldOptions): World {
     registries,
     rng,
     config: opts.config,
+    timeline: opts.makeTimeline(state.timeline, opts.config),
   };
 
   return { state, services };

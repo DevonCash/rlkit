@@ -15,6 +15,7 @@ import { pickupHandler } from './pickup';
 import { dropHandler } from './drop';
 import { equipHandler } from './equip';
 import { unequipHandler } from './unequip';
+import { useItemHandler } from './use-item';
 
 export { moveHandler } from './move';
 export { waitHandler } from './wait';
@@ -24,6 +25,7 @@ export { pickupHandler } from './pickup';
 export { dropHandler } from './drop';
 export { equipHandler } from './equip';
 export { unequipHandler } from './unequip';
+export { useItemHandler } from './use-item';
 export { makeMoveEffect } from './move';
 
 /** Register the engine's built-in handlers. Call once at world assembly. */
@@ -36,4 +38,5 @@ export function registerCoreHandlers(registry: Registry<ActionHandler>): void {
   registry.register('drop', dropHandler);
   registry.register('equip', equipHandler);
   registry.register('unequip', unequipHandler);
+  registry.register('useItem', useItemHandler);
 }

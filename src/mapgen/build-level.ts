@@ -9,8 +9,29 @@
 import type { Cell } from '../core/coords';
 import { TILES_LAYER, createLevel, type Level } from '../core/level';
 import type { World } from '../core/world';
+import type { Config } from '../config/defaults';
 import type { GeneratorRegistry, MapGenerator } from './generator';
 import { decorate, entranceOf } from './decorate';
+
+/**
+ * Per-generator config knobs spread into `GenParams`. Each generator also
+ * defaults its own knobs, so unknown ids (or content generators) just get
+ * `floorIndex`; this only surfaces the engine's tunables (config vs logic).
+ */
+function configKnobsFor(id: string, config: Config): Record<string, unknown> {
+  switch (id) {
+    case 'bsp':
+      return { minRoomSize: config.bsp.minRoomSize, maxDepth: config.bsp.maxDepth };
+    case 'cellular':
+      return {
+        wallProb: config.cellular.wallProb,
+        iterations: config.cellular.iterations,
+        threshold: config.cellular.threshold,
+      };
+    default:
+      return {};
+  }
+}
 
 export interface BuildLevelParams {
   generator: string;
@@ -39,10 +60,8 @@ export function buildLevel(world: World, params: BuildLevelParams): BuiltLevel {
 
   // Forked sub-stream: isolated and reproducible per world seed.
   const rng = world.services.rng.fork();
-  const raw = generator.generate(
-    { ...params, floorIndex, minRoomSize: world.services.config.bsp.minRoomSize, maxDepth: world.services.config.bsp.maxDepth },
-    rng,
-  );
+  const knobs = configKnobsFor(params.generator, world.services.config);
+  const raw = generator.generate({ ...params, floorIndex, ...knobs }, rng);
   const map = decorate(raw, {
     floorIndex,
     stairsIndex,

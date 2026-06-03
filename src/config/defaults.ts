@@ -21,6 +21,12 @@ export interface Config {
   readonly tiles: readonly TileType[];
   /** BSP generator defaults (§8.2). */
   readonly bsp: { readonly minRoomSize: number; readonly maxDepth: number };
+  /** Cellular-automata generator defaults (§8.2). */
+  readonly cellular: {
+    readonly wallProb: number;
+    readonly iterations: number;
+    readonly threshold: number;
+  };
   /** Default damage-formula coefficients (§9.3); the formula itself is logic. */
   readonly combat: { readonly minDamage: number; readonly variance: number };
   /** Equipment slot names (§10). */
@@ -67,6 +73,7 @@ export const defaultConfig: Config = {
     { id: 'stairs_down', walkable: true, transparent: true, glyph: '>', fg: '#ff4', tags: ['stairs'] },
   ],
   bsp: { minRoomSize: 5, maxDepth: 5 },
+  cellular: { wallProb: 0.45, iterations: 4, threshold: 5 },
   combat: { minDamage: 1, variance: 2 },
   equipment: { slots: ['weapon', 'armor', 'ring'] },
   inventory: { defaultCapacity: 26 },

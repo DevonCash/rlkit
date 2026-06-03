@@ -17,6 +17,7 @@ import type { Action, ActionOutcome } from './action';
 
 export type GameEvent =
   | { type: 'moved'; entity: EntityId; from: Cell; to: Cell }
+  | { type: 'bumped'; entity: EntityId; cell: Cell; target?: EntityId }
   | { type: 'damaged'; entity: EntityId; amount: number; source?: EntityId }
   | { type: 'died'; entity: EntityId }
   | { type: 'resource:overflow'; entity: EntityId; resourceId: string; excess: number; cause: string }

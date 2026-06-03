@@ -24,14 +24,14 @@ describe('mapKey (§22.14)', () => {
 });
 
 describe('commandToAction (§22.14)', () => {
-  it('movement → bump in the DIRS8 direction', () => {
+  it('movement → move in the DIRS8 direction', () => {
     expect(commandToAction({ type: 'move-north' }, { player: 'p' })).toEqual({
-      type: 'bump',
+      type: 'move',
       actor: 'p',
       dir: { x: 0, y: -1 },
     });
     expect(commandToAction({ type: 'move-se' }, { player: 'p' })).toEqual({
-      type: 'bump',
+      type: 'move',
       actor: 'p',
       dir: { x: 1, y: 1 },
     });

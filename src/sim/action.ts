@@ -56,6 +56,7 @@ export function resolve(world: World, action: Action, depth = 0): ActionOutcome 
   let rejectReason: string | undefined;
   let fizzleReason: string | undefined;
   let redirectAction: Action | undefined;
+  let redirectAnnounce: GameEvent[] = [];
 
   const ctx: ActionContext = {
     world: view,
@@ -70,8 +71,11 @@ export function resolve(world: World, action: Action, depth = 0): ActionOutcome 
     fizzle(reason) {
       if (fizzleReason === undefined) fizzleReason = reason;
     },
-    redirect(next) {
-      if (redirectAction === undefined) redirectAction = next;
+    redirect(next, announce) {
+      if (redirectAction === undefined) {
+        redirectAction = next;
+        redirectAnnounce = announce ?? [];
+      }
     },
     cost: world.services.config.baseActionCost,
   };
@@ -90,7 +94,13 @@ export function resolve(world: World, action: Action, depth = 0): ActionOutcome 
     if (depth >= MAX_REDIRECT) {
       return { status: 'rejected', reason: 'redirect depth exceeded' };
     }
-    return resolve(world, redirectAction, depth + 1);
+    const out = resolve(world, redirectAction, depth + 1);
+    // Prepend announce events (e.g. `bumped` before the attack's `damaged`),
+    // unless the redirected action rejected (nothing happened).
+    if (redirectAnnounce.length > 0 && out.status !== 'rejected') {
+      return { ...out, events: [...redirectAnnounce, ...out.events] };
+    }
+    return out;
   }
 
   // 2. Pre-phase reactors (skip if the handler already invalidated the action).

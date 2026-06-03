@@ -3,8 +3,9 @@
  *
  * Reads attacker + defender stat blocks, runs the damage formula, and pushes a
  * single `changeResourceEffect` against the target's hp. Death and overkill
- * fall out of `changeResource`'s hp threshold + underflow. `bump` redirects to
- * this action, so a target's armor pre-reactor can reduce the pushed damage
+ * fall out of `changeResource`'s hp threshold + underflow. `move` redirects to
+ * this action when stepping into a foe, so a target's armor pre-reactor can
+ * reduce the pushed damage
  * effect before it applies.
  */
 import type { ActionContext } from '../../core/action';

@@ -2,7 +2,8 @@
  * ai/simple — the batteries-included simple AI mixins (§11.2).
  *
  * `aiHunter` chases the nearest visible hostile, stepping via the PathProvider
- * and using `bump` so walking into the target becomes an attack (redirect).
+ * and emitting `move` so walking into the target becomes an attack (the move
+ * handler dispatches relocate/swap/attack/bump).
  * `aiWanderer` takes a random walkable step. Both implement `Mixin.takeTurn`;
  * `undefined` declines so the next AI mixin (or the driver's `wait`) takes over.
  * For richer behavior, the field-based `DesireAI` (M6b) replaces these.
@@ -29,8 +30,9 @@ export const aiHunterMixin: Mixin = {
     if (!level) return undefined;
     const step = pathToward(world, level, { x: sp.x, y: sp.y }, { x: tp.x, y: tp.y });
     if (!step || (step.x === 0 && step.y === 0)) return undefined;
-    // bump: walks into a free cell, or attacks/ swaps the occupant (redirect).
-    return { type: 'bump', actor: self.id, dir: step };
+    // move: walks into a free cell, or attacks/swaps the occupant (the move
+    // handler dispatches — walking into the target becomes an attack).
+    return { type: 'move', actor: self.id, dir: step };
   },
 };
 

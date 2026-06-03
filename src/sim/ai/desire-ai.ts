@@ -7,8 +7,8 @@
  * (they may change at runtime); the summation is the logic. A field of any kind
  * — goal, scent, influence — is just a `fieldId` in the list.
  *
- * Returns `bump` (consistent with aiHunter): stepping into the goal cell becomes
- * an attack via the redirect.
+ * Returns `move` (consistent with aiHunter): stepping into the goal cell becomes
+ * an attack via the move handler's redirect.
  */
 import { get, type Entity } from '../../core/entity';
 import type { Position, DesireAIData } from '../../core/component';
@@ -64,6 +64,6 @@ export const desireAiMixin: Mixin = {
     const target = ties.length === 1 ? ties[0]! : world.services.rng.pick(ties);
     const tx = target % level.width;
     const ty = (target / level.width) | 0;
-    return { type: 'bump', actor: self.id, dir: { x: Math.sign(tx - pos.x), y: Math.sign(ty - pos.y) } };
+    return { type: 'move', actor: self.id, dir: { x: Math.sign(tx - pos.x), y: Math.sign(ty - pos.y) } };
   },
 };

@@ -37,7 +37,7 @@ describe('decideAction + simple AI (§11.2)', () => {
     const mon = place(w, 'mon', 8, 2, [{ type: 'allegiance', faction: 'monster' }], ['aiHunter', 'aiWanderer']);
 
     const action = decideAction(w, 'mon');
-    expect(action?.type).toBe('bump'); // hunter chose to close in
+    expect(action?.type).toBe('move'); // hunter chose to close in
     expect((action as { dir: { x: number } }).dir.x).toBe(-1); // toward the player (west)
     void mon;
   });
@@ -58,7 +58,7 @@ describe('decideAction + simple AI (§11.2)', () => {
     expect(nearestHostile(w, mon)?.id).toBe('near');
   });
 
-  it('a hunter adjacent to its target attacks via the bump redirect', () => {
+  it('a hunter adjacent to its target attacks via the move redirect', () => {
     const w = setup();
     place(w, 'player', 5, 2, [
       { type: 'allegiance', faction: 'player' },
@@ -71,9 +71,9 @@ describe('decideAction + simple AI (§11.2)', () => {
     ], ['aiHunter', 'aiWanderer']);
 
     const action = decideAction(w, 'mon');
-    expect(action?.type).toBe('bump');
+    expect(action?.type).toBe('move');
     perform(w, action!);
-    // bump → attack via redirect → player took damage; the monster didn't move.
+    // move → attack via redirect → player took damage; the monster didn't move.
     expect(get<Resources>(w.state.entities.get('player')!, 'resources')!.pools.hp!.current).toBeLessThan(20);
     expect(px(mon)).toBe(6);
   });

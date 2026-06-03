@@ -29,7 +29,7 @@ describe('autoexplore (§11.3.6)', () => {
     w.state.entities.set('explorer', e);
 
     const action = autoexploreStep(w, 'explorer');
-    expect(action?.type).toBe('bump');
+    expect(action?.type).toBe('move');
     expect((action as { dir: { x: number } }).dir.x).toBe(1); // east, toward the unknown
   });
 

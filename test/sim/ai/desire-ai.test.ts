@@ -49,7 +49,7 @@ describe('DesireAI (§22.11)', () => {
     ], ['desire-ai']);
 
     const action = decideAction(w, 'mon');
-    expect(action?.type).toBe('bump');
+    expect(action?.type).toBe('move');
     expect((action as { dir: { x: number } }).dir.x).toBe(1); // east, toward the player
   });
 
@@ -69,7 +69,7 @@ describe('DesireAI (§22.11)', () => {
     const a = run();
     const b = run();
     expect(a).toEqual(b); // same seed → same tie-break
-    expect(a?.type).toBe('bump');
+    expect(a?.type).toBe('move');
     expect(Math.abs((a as { dir: { y: number } }).dir.y)).toBe(1); // moved N or S toward a goal
   });
 

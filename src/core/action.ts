@@ -20,8 +20,7 @@ import type { World, ReadonlyWorld } from './world';
 /** The built-in action variants resolved by the engine's own handlers. */
 export type CoreAction =
   | { type: 'move'; actor: EntityId; dir: Point }
-  | { type: 'wait'; actor: EntityId }
-  | { type: 'bump'; actor: EntityId; dir: Point };
+  | { type: 'wait'; actor: EntityId };
 
 /**
  * An action: a built-in variant or a content-defined one. The open tail keeps
@@ -66,11 +65,13 @@ export interface ActionContext {
   /**
    * Re-dispatch this turn as a different action: the handler declines to act and
    * `resolve` instead resolves `action` fully (its own handler + pre-phase
-   * reactors + validate-all-then-apply). Used by `bump` to become an `attack`
-   * so the target's reactors fire. Effects pushed before redirecting are
-   * discarded.
+   * reactors + validate-all-then-apply). Used by `move` to become an `attack`
+   * (a bump) so the target's reactors fire. Effects pushed before redirecting
+   * are discarded. Optional `announce` events are prepended to the redirected
+   * outcome's events (e.g. a `bumped` event ahead of the attack's `damaged`),
+   * unless the redirected action rejects.
    */
-  redirect(action: Action): void;
+  redirect(action: Action, announce?: GameEvent[]): void;
   /** Energy cost of the action; pre-phase reactors may adjust it. */
   cost: number;
 }

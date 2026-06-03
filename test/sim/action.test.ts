@@ -98,7 +98,7 @@ describe('resolve — validate-all-then-apply atomicity (§22.5, headline)', () 
 describe('resolve — determinism (§22.5)', () => {
   test.prop([
     fc.integer(),
-    fc.array(fc.constantFrom('move', 'wait', 'bump'), { minLength: 1, maxLength: 30 }),
+    fc.array(fc.constantFrom('move', 'wait'), { minLength: 1, maxLength: 30 }),
   ])('same seed + same commands → identical event stream', (seed, cmds) => {
     const run = () => {
       const w = makeWorld(seed);

@@ -82,6 +82,7 @@ export const defaultConfig: Config = {
   log: {
     templates: {
       moved: '{entity} moves.',
+      bumped: '{entity} bumps into something.',
       damaged: '{entity} takes {amount} damage.',
       died: '{entity} dies.',
     },

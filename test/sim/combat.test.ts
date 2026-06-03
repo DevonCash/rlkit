@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { test, fc } from '@fast-check/vitest';
 import { createWorld, perform } from '../../src/index';
 import { createEntity, get, type Entity } from '../../src/core/entity';
-import type { Resources } from '../../src/core/component';
+import type { Resources, Position } from '../../src/core/component';
 import type { Registry } from '../../src/core/registry';
 import type { StatDef } from '../../src/sim/stats';
 import type { ResourceDef } from '../../src/sim/resources';
@@ -83,8 +83,8 @@ describe('combat (§22.8)', () => {
   });
 });
 
-describe('bump → attack via redirect runs target reactors (§22.6/§22.8)', () => {
-  it('an armor pre-reactor reduces the pending damage effect dealt through a bump', () => {
+describe('move → attack via redirect runs target reactors (§22.6/§22.8)', () => {
+  it('an armor pre-reactor reduces the pending damage effect dealt through a move-bump', () => {
     const w = world(1);
     let armorFired = 0;
     // Defender's armor mixin softens any pending hp-damage by 4 (pre-phase).
@@ -124,7 +124,7 @@ describe('bump → attack via redirect runs target reactors (§22.6/§22.8)', ()
     w.services.queries.place('a', 'L', 1 * 6 + 1);
     w.services.queries.place('b', 'L', 1 * 6 + 2);
 
-    perform(w, { type: 'bump', actor: 'a', dir: { x: 1, y: 0 } });
+    perform(w, { type: 'move', actor: 'a', dir: { x: 1, y: 0 } });
 
     // Redirect routed through resolve → the target's pre-phase armor reactor
     // fired on the attack and reduced the damage actually applied.
@@ -132,5 +132,36 @@ describe('bump → attack via redirect runs target reactors (§22.6/§22.8)', ()
     const dealt = 20 - hpOf(b);
     expect(dealt).toBeGreaterThan(0);
     expect(dealt).toBeLessThanOrEqual(10 + defaultConfig.combat.variance - 4);
+  });
+
+  it('emits a `bumped` (with target) ahead of the attack damage', () => {
+    const w = world(1);
+    const a = createEntity('a', [
+      { type: 'stats', base: { attack: 6, 'max-hp': 20 } },
+      { type: 'resources', pools: { hp: { current: 20 } } },
+      { type: 'position', x: 1, y: 1, levelId: 'L' },
+    ]);
+    const b = createEntity('b', [
+      { type: 'stats', base: { defense: 0, 'max-hp': 20 } },
+      { type: 'resources', pools: { hp: { current: 20 } } },
+      { type: 'position', x: 2, y: 1, levelId: 'L' },
+    ]);
+    w.state.entities.set('a', a);
+    w.state.entities.set('b', b);
+    w.state.levels.set('L', { id: 'L', width: 6, height: 6, layers: new Map(), entityIndex: new Map(), metadata: {} });
+    w.services.queries.index(a);
+    w.services.queries.index(b);
+    w.services.queries.place('a', 'L', 1 * 6 + 1);
+    w.services.queries.place('b', 'L', 1 * 6 + 2);
+
+    const out = perform(w, { type: 'move', actor: 'a', dir: { x: 1, y: 0 } });
+    expect(out.status).toBe('done');
+    if (out.status === 'done') {
+      // The `bumped` (carrying the target) leads the attack's events.
+      expect(out.events[0]).toEqual({ type: 'bumped', entity: 'a', cell: 1 * 6 + 2, target: 'b' });
+    }
+    // the attacker stayed put; the defender took damage (hp drops).
+    expect(get<Position>(a, 'position')!.x).toBe(1);
+    expect(hpOf(b)).toBeLessThan(20);
   });
 });

@@ -3,7 +3,7 @@
  *
  * A goal field whose goals are unexplored tiles (undiscovered walls treated as
  * floor so the frontier is reachable); the actor steps downhill toward the
- * closest unknown. Returns the next step as a `bump`, or `undefined` when the
+ * closest unknown. Returns the next step as a `move`, or `undefined` when the
  * reachable map is fully explored. Halting on a new message / newly-seen monster
  * is the driver's concern (M7) — this just yields the next step.
  */
@@ -36,5 +36,5 @@ export function autoexploreStep(world: World, actorId: string): Action | undefin
 
   const tx = step % level.width;
   const ty = (step / level.width) | 0;
-  return { type: 'bump', actor: actorId, dir: { x: Math.sign(tx - pos.x), y: Math.sign(ty - pos.y) } };
+  return { type: 'move', actor: actorId, dir: { x: Math.sign(tx - pos.x), y: Math.sign(ty - pos.y) } };
 }

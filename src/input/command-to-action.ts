@@ -1,8 +1,8 @@
 /**
  * command-to-action — translate a command into the player's action (§14).
  *
- * Pure: movement commands become a `bump` (auto move-or-attack via the bump
- * redirect) in the matching `DIRS8` direction; `wait` becomes a wait; UI
+ * Pure: movement commands become a `move` in the matching `DIRS8` direction
+ * (the move handler decides relocate/attack/swap/bump); `wait` becomes a wait; UI
  * commands (`open-inventory`/`pickup`/`open-targeting`/`confirm`/`cancel`)
  * become a `UIIntent` the stateful session executes. Returns `undefined` for an
  * unrecognized command.
@@ -46,7 +46,7 @@ export function moveDirection(commandType: string): Point | undefined {
 
 export function commandToAction(cmd: Command, ctx: CommandContext): Action | UIIntent | undefined {
   const dir = MOVE[cmd.type];
-  if (dir) return { type: 'bump', actor: ctx.player, dir };
+  if (dir) return { type: 'move', actor: ctx.player, dir };
   if (cmd.type === 'wait') return { type: 'wait', actor: ctx.player };
   if (UI_COMMANDS.has(cmd.type)) return { ui: cmd.type };
   return undefined;

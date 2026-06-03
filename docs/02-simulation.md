@@ -44,6 +44,7 @@ type Action =
 // Events likewise carry typed payloads per variant.
 type GameEvent =
   | { type: 'moved';   entity: EntityId; from: Cell; to: Cell }
+  | { type: 'bumped';  entity: EntityId; cell: Cell; target?: EntityId } // a blocked move: wall (no target) or creature
   | { type: 'damaged'; entity: EntityId; amount: number; source?: EntityId }
   | { type: 'died';    entity: EntityId }
   | { type: 'resource:overflow';  entity: EntityId; resourceId: string; excess: number; cause: string }
@@ -55,6 +56,9 @@ interface ActionContext {
   push(effect: Effect): void; // queue an atomic mutation
   reject(reason: string): void;   // INVALID: no time passes, re-prompt the player
   fizzle(reason: string): void;   // FAILED: queued effects still apply, the turn is spent
+  // Re-dispatch this turn as another action (e.g. `move` → `attack`); optional
+  // `announce` events are prepended to the redirected outcome (e.g. `bumped`).
+  redirect(action: Action, announce?: GameEvent[]): void;
   cost: number;               // energy; mixins may adjust
 }
 
@@ -112,6 +116,8 @@ The timeline exposes both clocks; delayed effects (§11A.4) are keyed to the wor
 
 ### 7.4 Built-in action handlers
 
-`move`, `bump` (resolves to attack/open/swap depending on target mixins), `attack`, `pickup`, `drop`, `equip`/`unequip`, `useItem`, `throwItem`, `wait`, `descend`/`ascend`, `openClose`. Each is registered and overridable.
+`move` (the single movement intent — the handler dispatches by what's at the target cell: **relocate** onto empty floor, **swap** with a `swappable` occupant, **redirect to `attack`** against a hostile occupant, or **bump** a wall), `attack`, `pickup`, `drop`, `equip`/`unequip`, `useItem`, `throwItem`, `wait`, `descend`/`ascend`, `openClose`. Each is registered and overridable.
+
+A blocked move emits a **`bumped`** event (the bumper, the bumped `cell`, and the `target` occupant if any). Walking into a wall is a *free* bump: it emits `bumped` with no `target`, costs 0 energy, and doesn't relocate the actor (so the player simply re-prompts). Walking into a hostile redirects to `attack`, prepending `bumped(target)` to the attack's events. A swap is `moved`-only (no bump). Moving off the map is rejected (no tile to bump). There is no separate `bump` action — "bump" is the *outcome of an interrupted move*.
 
 ---

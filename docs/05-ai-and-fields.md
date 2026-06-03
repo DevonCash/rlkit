@@ -115,6 +115,8 @@ You can't optimize both layouts at once. Resolution: keep field-major arrays (up
 
 **Memory** is modest: `numFields × cells × 4` bytes per level (≈256 KB for 20 fields on an 80×40 map; a few MB on very large maps). Only the active level's `perTurn` fields tick.
 
+> **Implementation notes (M6b).** (1) **Field data are Float32 `Level.layers`** keyed `field:<id>` (§8.1), so they share the cell space; the store (a service) holds descriptors/dirty/versions/composite-cache/scratch/bus-subs and is rebuilt per level (not serialized). (2) **Goal sets are faction-relative and shared**: a goal field is one of `{kind:'stance', stance, faction}` / `{kind:'unexplored'}` / `{kind:'cells'}`, resolved against the world by the store; the `stance` source uses the faction *matrix* only (per-entity charm/fear overrides do not steer shared fields). The field id encodes the selector so two factions get distinct shared fields. (3) **Composite caching** is keyed by the profile and validated by per-field *version counters* (no turn boundary needed): a cached composite is reused until a contributing field's version changes. (4) **Flee** = compute the threat map, scale finite cells by a negative `fleeCoefficient`, then **re-Dijkstra to a fixed point** (so the gradient leads to exits, not dead ends). (5) **Scent diffusion is gated by `transparent`** (an opaque wall blocks scent; an open arch passes), double-buffered through the store scratch.
+
 #### 11.3.5 `DesireAI` mixin (unchanged by generalization)
 
 ```ts

@@ -16,6 +16,7 @@ src/
     mixin.ts           # Mixin interface (onAction/onEvent/modifyStats/takeTurn) + registry + resolution
     fov.ts             # FovProvider interface (rotJS impl injected from adapters/) — §11.1
     path.ts            # PathProvider interface (rotJS impl injected from adapters/) — §11.1
+    fields.ts          # Field abstraction types + FieldStore/FieldManager interfaces (impl in sim/ai) — §11.3
     world.ts           # World = { state, services }; ReadonlyWorld view; fork() seam; TimelineState + Timeline interface
     registry.ts        # generic Registry<T> + Registries bag (§6.3)
     query.ts           # entity query/index layer (per-component/mixin id sets)

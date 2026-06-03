@@ -237,6 +237,26 @@ export { decideAction } from './sim/ai/decide';
 export { aiHunterMixin, aiWandererMixin } from './sim/ai/simple';
 export { canSee, pathToward, nearestHostile } from './sim/ai/helpers';
 
+// --- field system + DesireAI + autoexplore (§11.3) -------------------------
+export type {
+  FieldId,
+  FieldKind,
+  FieldDescriptor,
+  FieldProducer,
+  FieldCtx,
+  FieldStore,
+  FieldManager,
+  Desire,
+  DesireProfile,
+} from './core/fields';
+export { DesireAIData } from './core/component';
+export { createFieldManager, registerFieldProducer, FIELD_LAYER_PREFIX } from './sim/ai/field';
+export type { GoalSource } from './sim/ai/field';
+export { goalProducer, scentProducer, influenceProducer } from './sim/ai/producers';
+export type { GoalParams, ScentParams, InfluenceParams } from './sim/ai/producers';
+export { desireAiMixin } from './sim/ai/desire-ai';
+export { autoexploreStep } from './sim/ai/autoexplore';
+
 /** Options for the public {@link createWorld}: a seed or a prebuilt RNG. */
 export interface WorldOptions {
   config: Config;

@@ -277,6 +277,8 @@ export type { TakeTurnOptions, TurnResult } from './sim/driver';
 export { registerCoreTimerEffects } from './sim/effects';
 export type { TimerEffectRegistry } from './sim/effects';
 export { runReactions } from './sim/action';
+export { createMessageLog } from './ui/log';
+export type { MessageLog } from './ui/log';
 
 /** Drive the engine: process turns, rendering after each player turn. */
 export interface RunOptions {

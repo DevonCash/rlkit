@@ -1,0 +1,79 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`determinism golden run (§22.13) > a scripted run under a fixed seed produces a stable event stream 1`] = `
+[
+  {
+    "entity": "hero",
+    "from": 21,
+    "to": 22,
+    "type": "moved",
+  },
+  {
+    "entity": "hero",
+    "from": 22,
+    "to": 23,
+    "type": "moved",
+  },
+  {
+    "entity": "hero",
+    "from": 23,
+    "to": 24,
+    "type": "moved",
+  },
+  {
+    "entity": "hero",
+    "from": 24,
+    "to": 25,
+    "type": "moved",
+  },
+  {
+    "cell": 26,
+    "entity": "hero",
+    "target": "goblin",
+    "type": "bumped",
+  },
+  {
+    "cell": 26,
+    "entity": "hero",
+    "target": "goblin",
+    "type": "bumped",
+  },
+  {
+    "cause": "damage",
+    "deficit": 2,
+    "entity": "goblin",
+    "resourceId": "hp",
+    "type": "resource:underflow",
+  },
+  {
+    "entity": "goblin",
+    "type": "died",
+  },
+  {
+    "cell": 26,
+    "entity": "hero",
+    "target": "goblin",
+    "type": "bumped",
+  },
+  {
+    "cause": "damage",
+    "deficit": 7,
+    "entity": "goblin",
+    "resourceId": "hp",
+    "type": "resource:underflow",
+  },
+  {
+    "cell": 26,
+    "entity": "hero",
+    "target": "goblin",
+    "type": "bumped",
+  },
+  {
+    "cause": "damage",
+    "deficit": 5,
+    "entity": "goblin",
+    "resourceId": "hp",
+    "type": "resource:underflow",
+  },
+]
+`;

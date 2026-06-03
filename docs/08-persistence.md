@@ -23,6 +23,12 @@ interface Storage { save(slot: string, blob: SaveBlob): Promise<void>; load(slot
 
 `Storage` is an adapter (localStorage, IndexedDB, file, memory). Restoring RNG state gives reproducible continuation; full run replay (recording the action stream) is a possible later add-on, enabled by the action pipeline but not in initial scope.
 
+**Implementation notes (M9).** The public surface is `saveWorld(world): SaveBlob` / `encodeSave(world): string` and `loadWorld(raw, opts?): World`; `Storage`/`createStorage` wrap them over a structural `StorageLike` backend (so `localStorage` plugs in without pulling the DOM into the library build). Three resolved details refine the strategy above:
+
+- **`EngineConfig` is reconstructed, not serialized.** Like services, config is injected at load (`loadWorld({ config })`, default `defaultConfig`) rather than carried in the blob — it holds content tables, not run state, and must stay function-free data. Only `WorldState` is in the blob.
+- **The migration table is a load-time argument** (`loadWorld({ migrations })`), applied before validation. It is not part of `EngineConfig` (which would otherwise carry functions).
+- **`Level.entityIndex` is not persisted.** The authoritative spatial index is the live `QueryIndex`; on load it is rebuilt from each entity's `Position` component, and `entityIndex` stays empty (as it is during play), keeping the round-trip symmetric.
+
 ### 16.4 Boundary validation (Zod, schema-first)
 
 Two boundaries take data the engine didn't produce itself: **authored content** (blueprints, tile types, effect definitions) and **loaded save blobs** (possibly old or hand-edited). Both are validated with **Zod v4** at the edge — never in hot loops.

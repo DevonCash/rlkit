@@ -1,13 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { createWorld, perform } from '../../src/index';
-import { registerCoreConsumableEffects, type ConsumableEffectRegistry } from '../../src/sim/items';
 import { createEntity, get, type Entity } from '../../src/core/entity';
 import type { Resources, Inventory, Consumable } from '../../src/core/component';
 import { defaultConfig } from '../../src/config/defaults';
 
 function setup() {
+  // createWorld registers the core consumable effects (incl. 'heal-10') at the edge.
   const w = createWorld({ config: defaultConfig, rng: 1 });
-  registerCoreConsumableEffects(w.services.registries.consumableEffects as ConsumableEffectRegistry);
   const hero = createEntity('hero', [
     { type: 'stats', base: { 'max-hp': 20 } },
     { type: 'resources', pools: { hp: { current: 5 } } },

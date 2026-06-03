@@ -1,19 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { createWorld, resolve } from '../../src/index';
 import { deriveStat } from '../../src/sim/stats';
-import { equippableMixin } from '../../src/sim/items';
 import { createEntity, get, type Entity } from '../../src/core/entity';
 import type { Equipped, Inventory } from '../../src/core/component';
-import type { Mixin } from '../../src/core/mixin';
-import type { Registry } from '../../src/core/registry';
 import { defaultConfig } from '../../src/config/defaults';
 
 function setup() {
+  // createWorld registers the `equippable` mixin at the edge.
   const w = createWorld({ config: defaultConfig, rng: 1 });
-  // The equippable mixin is registered at the edge in the full build; register
-  // it directly here so deriveStats can fold equipment.
-  (w.services.registries.mixins as Registry<Mixin>).register('equippable', equippableMixin);
-
   const hero = createEntity(
     'hero',
     [

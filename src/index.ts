@@ -15,6 +15,12 @@ import { registerCoreComponents } from './core/component';
 import { registerCoreStats, type StatDef } from './sim/stats';
 import { registerCoreResources, type ResourceDef } from './sim/resources';
 import { registerCoreStatuses, type StatusDef } from './sim/status';
+import {
+  equippableMixin,
+  registerCoreConsumableEffects,
+  type ConsumableEffectRegistry,
+} from './sim/items';
+import type { Mixin } from './core/mixin';
 import { diedReactor } from './sim/death';
 import { bsp } from './mapgen/bsp';
 import type { MapGenerator } from './mapgen/generator';
@@ -187,6 +193,24 @@ export { applyStatusEffect, tickActor, registerCoreStatuses } from './sim/status
 export type { StatusDef, StatusDefRegistry } from './sim/status';
 export { diedReactor } from './sim/death';
 
+// --- items / inventory / equipment (§10) -----------------------------------
+export { Item, Equipment, Consumable, Inventory, Equipped } from './core/component';
+export {
+  equippableMixin,
+  registerCoreConsumableEffects,
+  canCarry,
+  effectiveCapacity,
+  inventoryWeight,
+} from './sim/items';
+export type { ConsumableEffect, ConsumableEffectRegistry } from './sim/items';
+export {
+  pickupHandler,
+  dropHandler,
+  equipHandler,
+  unequipHandler,
+  useItemHandler,
+} from './sim/handlers';
+
 /** Options for the public {@link createWorld}: a seed or a prebuilt RNG. */
 export interface WorldOptions {
   config: Config;
@@ -217,6 +241,8 @@ export function createWorld(opts: WorldOptions): World {
   registerCoreResources(world.services.registries.resources as Registry<ResourceDef>);
   registerCoreStatuses(world.services.registries.statuses as Registry<StatusDef>, world.services.config.defaultSpeed);
   (world.services.registries.generators as Registry<MapGenerator>).register('bsp', bsp);
+  (world.services.registries.mixins as Registry<Mixin>).register('equippable', equippableMixin);
+  registerCoreConsumableEffects(world.services.registries.consumableEffects as ConsumableEffectRegistry);
   world.services.reactors.register(diedReactor);
   return world;
 }

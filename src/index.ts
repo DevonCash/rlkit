@@ -66,8 +66,14 @@ export { TagIndex, Tagged } from './core/tags';
 // --- queries / events / level (§6.1, §7.2, §8.1) ---------------------------
 export { createQueries, QueryIndex } from './core/query';
 export type { Queries } from './core/query';
-export { createEventBus } from './core/events';
-export type { GameEvent, EventBus, EventListener } from './core/events';
+export { createEventBus, createReactionLoop } from './core/events';
+export type {
+  GameEvent,
+  EventBus,
+  EventListener,
+  ReactionLoop,
+  ReactionLoopOptions,
+} from './core/events';
 export type { Level, TileType, Layer } from './core/level';
 
 // --- action / effect / reactor / mixin spine (§7.2, §7.3, §5.3) ------------

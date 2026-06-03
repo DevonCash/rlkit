@@ -5,6 +5,7 @@
  * rates, and content tables live here (or in registries), never hardcoded in
  * rules. Values land with the systems that read them.
  */
+import type { TileType } from '../core/level';
 
 export interface Config {
   /** turns → energy conversion helper baseline (decision §21.2). */
@@ -15,6 +16,10 @@ export interface Config {
   readonly defaultSpeed: number;
   /** Max reaction-loop drain iterations before the depth guard trips (§7.3). */
   readonly maxReactionDepth: number;
+  /** Built-in tile definitions; index 0 (first) is wall by convention (§8.1). */
+  readonly tiles: readonly TileType[];
+  /** BSP generator defaults (§8.2). */
+  readonly bsp: { readonly minRoomSize: number; readonly maxDepth: number };
 }
 
 export const defaultConfig: Config = {
@@ -22,4 +27,10 @@ export const defaultConfig: Config = {
   baseActionCost: 100,
   defaultSpeed: 10,
   maxReactionDepth: 64,
+  tiles: [
+    { id: 'wall', walkable: false, transparent: false, glyph: '#', fg: '#666' },
+    { id: 'floor', walkable: true, transparent: true, glyph: '.', fg: '#aaa' },
+    { id: 'stairs_down', walkable: true, transparent: true, glyph: '>', fg: '#ff4', tags: ['stairs'] },
+  ],
+  bsp: { minRoomSize: 5, maxDepth: 5 },
 };

@@ -10,6 +10,11 @@ import type { World, CreateWorldOptions } from './core/world';
 import { makeRng } from './adapters/rng';
 import { createTimeline } from './sim/timeline';
 import { registerCoreHandlers } from './sim/handlers';
+import { registerCoreTiles } from './core/tiles';
+import { registerCoreComponents } from './core/component';
+import { bsp } from './mapgen/bsp';
+import type { MapGenerator } from './mapgen/generator';
+import type { ComponentRegistry } from './core/component';
 import type { ActionHandler } from './core/action';
 import type { Registry } from './core/registry';
 import type { RNG } from './core/rng';
@@ -54,6 +59,7 @@ export {
   parseComponent,
   Position,
   Renderable,
+  Blueprint,
 } from './core/component';
 export type { Component, ComponentDef, ComponentRegistry } from './core/component';
 export {
@@ -77,7 +83,22 @@ export type {
   ReactionLoop,
   ReactionLoopOptions,
 } from './core/events';
+
+// --- level + tiles (§8.1) --------------------------------------------------
 export type { Level, TileType, Layer } from './core/level';
+export {
+  createLevel,
+  tileAt,
+  tileIndexAt,
+  setTile,
+  isWalkable,
+  isTransparent,
+  tilesLayer,
+  levelCell,
+  TILES_LAYER,
+} from './core/level';
+export type { TilePalette } from './core/tiles';
+export { createTilePalette, registerCoreTiles } from './core/tiles';
 
 // --- action / effect / reactor / mixin spine (§7.2, §7.3, §5.3) ------------
 export type {
@@ -126,6 +147,25 @@ export {
 } from './sim/handlers';
 export { runPreReactors, collectReactions } from './sim/reactors';
 
+// --- map generation + spawn (§8.2, §5.4) -----------------------------------
+export type {
+  MapGenerator,
+  GeneratorRegistry,
+  GenParams,
+  GeneratedMap,
+  Region,
+  Edge,
+  SpawnHint,
+} from './mapgen/generator';
+export { createGeneratorRegistry } from './mapgen/generator';
+export { bsp, generateBsp } from './mapgen/bsp';
+export { decorate, entranceOf } from './mapgen/decorate';
+export { reachableFrom, walkableCells } from './mapgen/reachability';
+export { buildLevel } from './mapgen/build-level';
+export type { BuildLevelParams, BuiltLevel } from './mapgen/build-level';
+export { spawn } from './sim/spawn';
+export type { SpawnOptions } from './sim/spawn';
+
 /** Options for the public {@link createWorld}: a seed or a prebuilt RNG. */
 export interface WorldOptions {
   config: Config;
@@ -147,8 +187,11 @@ export function createWorld(opts: WorldOptions): World {
     ...(opts.registries ? { registries: opts.registries } : {}),
   };
   const world = assembleWorld(core);
-  // Register the built-in action handlers at the composition edge (core may not
-  // import sim). Content can override any of them afterward by id.
+  // Register the built-ins at the composition edge (core may not import sim).
+  // Content can override/extend any of them afterward by id.
   registerCoreHandlers(world.services.registries.handlers as Registry<ActionHandler>);
+  registerCoreComponents(world.services.registries.components as ComponentRegistry);
+  registerCoreTiles(world.services.tiles, world.services.config.tiles);
+  (world.services.registries.generators as Registry<MapGenerator>).register('bsp', bsp);
   return world;
 }

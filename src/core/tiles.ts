@@ -33,6 +33,11 @@ export interface TilePalette {
   readonly size: number;
 }
 
+/** Register a list of tile defs into a palette in order (first → index 0). */
+export function registerCoreTiles(palette: TilePalette, tiles: readonly TileType[]): void {
+  for (const t of tiles) palette.register(t);
+}
+
 export function createTilePalette(): TilePalette {
   const registry: Registry<TileType> = createRegistry<TileType>('tile');
   const order: string[] = []; // index → id

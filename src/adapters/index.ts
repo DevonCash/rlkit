@@ -4,3 +4,11 @@
 export { makeRng } from './rng';
 export { makeRotFov, type RotFovOptions } from './rot-fov';
 export { makeRotPath, type RotPathOptions } from './rot-path';
+export {
+  encodeState,
+  decodeState,
+  createMemoryStorage,
+  createStorage,
+  type StorageLike,
+  type Storage,
+} from './storage';

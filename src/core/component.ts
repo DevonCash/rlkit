@@ -173,7 +173,8 @@ export function registerCoreComponents(reg: ComponentRegistry): void {
 // so it is schema-first (validated when loaded from untrusted sources). `spawn`
 // deep-clones the components and copies the mixin/tag names by reference.
 
-const ComponentData = z.object({ type: z.string() }).loose();
+/** Loose component shape for boundary validation: a `type` tag plus any data. */
+export const ComponentData = z.object({ type: z.string() }).loose();
 
 export const Blueprint = z.object({
   id: z.string(),

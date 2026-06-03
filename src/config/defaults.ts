@@ -50,6 +50,10 @@ export interface Config {
   };
   /** Message log (§12): event type → template string (payload interpolated). */
   readonly log: { readonly templates: Readonly<Record<string, string>> };
+  /** Input keymap (§14): normalized key combo → command id (fully configurable). */
+  readonly keymap: Readonly<Record<string, string>>;
+  /** UI layout (§15): HUD + log-view sizing. */
+  readonly ui: { readonly hud: { readonly enabled: boolean }; readonly log: { readonly height: number } };
 }
 
 export const defaultConfig: Config = {
@@ -82,4 +86,23 @@ export const defaultConfig: Config = {
       died: '{entity} dies.',
     },
   },
+  // vi-keys + arrows + numpad (NumLock digits). The 8 movement commands map to
+  // DIRS8 directions in command-to-action.ts.
+  keymap: {
+    k: 'move-north', ArrowUp: 'move-north', '8': 'move-north',
+    j: 'move-south', ArrowDown: 'move-south', '2': 'move-south',
+    h: 'move-west', ArrowLeft: 'move-west', '4': 'move-west',
+    l: 'move-east', ArrowRight: 'move-east', '6': 'move-east',
+    y: 'move-nw', '7': 'move-nw',
+    u: 'move-ne', '9': 'move-ne',
+    b: 'move-sw', '1': 'move-sw',
+    n: 'move-se', '3': 'move-se',
+    '.': 'wait', '5': 'wait',
+    i: 'open-inventory',
+    g: 'pickup',
+    f: 'open-targeting',
+    Enter: 'confirm',
+    Escape: 'cancel',
+  },
+  ui: { hud: { enabled: true }, log: { height: 5 } },
 };

@@ -100,4 +100,5 @@ export function registerCoreStats(reg: StatDefRegistry, defaultSpeed: number): v
   reg.register('attack', { id: 'attack', default: 1, min: 0 });
   reg.register('defense', { id: 'defense', default: 0, min: 0 });
   reg.register('speed', { id: 'speed', default: defaultSpeed, min: 1 });
+  reg.register('sight-radius', { id: 'sight-radius', default: 8, min: 0 });
 }

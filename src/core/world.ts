@@ -18,6 +18,8 @@ import { createQueries, type QueryIndex } from './query';
 import { createRegistry, type Registries } from './registry';
 import { createReactorRegistry, type ReactorRegistry } from './reactor';
 import { createTilePalette, type TilePalette } from './tiles';
+import type { FovProvider } from './fov';
+import type { PathProvider } from './path';
 
 /** A one-shot delayed effect scheduled on the world clock (§7.1). */
 export type TimerId = number;
@@ -86,6 +88,10 @@ export interface Services {
   reactors: ReactorRegistry;
   /** Tile definitions + int↔id mapping for level grids (§8.1). */
   tiles: TilePalette;
+  /** Field-of-view provider (rotJS behind the interface — §11.1). */
+  fov: FovProvider;
+  /** Pathfinding provider (rotJS behind the interface — §11.1). */
+  path: PathProvider;
   rng: RNG;
   config: Config;
   timeline: Timeline;
@@ -124,6 +130,13 @@ export interface CreateWorldOptions {
    * the default.
    */
   makeTimeline: (state: TimelineState, config: Config) => Timeline;
+  /**
+   * FOV + pathfinding providers (rotJS impls). Required here and injected: the
+   * concrete adapters pull rotJS, which the core must not import. The public
+   * `createWorld` (`src/index.ts`) supplies the rotJS defaults.
+   */
+  fov: FovProvider;
+  path: PathProvider;
   /** Extra registries to merge in beyond the engine defaults. */
   registries?: Registries;
 }
@@ -173,6 +186,8 @@ export function createWorld(opts: CreateWorldOptions): World {
     registries,
     reactors: createReactorRegistry(),
     tiles: createTilePalette(),
+    fov: opts.fov,
+    path: opts.path,
     rng,
     config: opts.config,
     timeline: opts.makeTimeline(state.timeline, opts.config),

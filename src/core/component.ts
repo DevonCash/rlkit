@@ -130,6 +130,19 @@ export const Equipped = z.object({
 });
 export type Equipped = z.infer<typeof Equipped>;
 
+// --- Factions (§11A.2) ----------------------------------------------------
+
+export const Stance = z.enum(['hostile', 'neutral', 'allied']);
+export type Stance = z.infer<typeof Stance>;
+
+export const Allegiance = z.object({
+  type: z.literal('allegiance'),
+  faction: z.string(),
+  /** Per-entity stance overrides (charm/fear/grudge) — directional, beat the matrix. */
+  overrides: z.record(z.string(), Stance).optional(),
+});
+export type Allegiance = z.infer<typeof Allegiance>;
+
 /** Register the built-in component schemas into a registry. */
 export function registerCoreComponents(reg: ComponentRegistry): void {
   reg.register('position', { type: 'position', schema: Position });
@@ -142,6 +155,7 @@ export function registerCoreComponents(reg: ComponentRegistry): void {
   reg.register('consumable', { type: 'consumable', schema: Consumable });
   reg.register('inventory', { type: 'inventory', schema: Inventory });
   reg.register('equipped', { type: 'equipped', schema: Equipped });
+  reg.register('allegiance', { type: 'allegiance', schema: Allegiance });
 }
 
 // --- Blueprints (content as data, §5.4) ----------------------------------

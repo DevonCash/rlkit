@@ -32,6 +32,13 @@ export interface Mixin {
    * world state, so it's safe to call any time stats are recomputed.
    */
   modifyStats?(self: Entity, world: ReadonlyWorld): StatModifier[];
+  /**
+   * Decide this entity's action on its turn (§11.2) — the AI hook. Returns an
+   * `Action`, or `undefined` to decline (the next AI mixin in declared order
+   * gets a try — a priority stack). Read-only; the driver feeds the chosen
+   * action to `resolve`/`perform`. `DesireAI` (M6b) implements this too.
+   */
+  takeTurn?(self: Entity, world: ReadonlyWorld): Action | undefined;
 }
 
 export type MixinRegistry = Registry<Mixin>;

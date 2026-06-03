@@ -8,6 +8,8 @@
 import { createWorld as assembleWorld } from './core/world';
 import type { World, CreateWorldOptions } from './core/world';
 import { makeRng } from './adapters/rng';
+import { makeRotFov } from './adapters/rot-fov';
+import { makeRotPath } from './adapters/rot-path';
 import { createTimeline } from './sim/timeline';
 import { registerCoreHandlers } from './sim/handlers';
 import { registerCoreTiles } from './core/tiles';
@@ -28,6 +30,8 @@ import type { ComponentRegistry } from './core/component';
 import type { ActionHandler } from './core/action';
 import type { Registry } from './core/registry';
 import type { RNG } from './core/rng';
+import type { FovProvider } from './core/fov';
+import type { PathProvider } from './core/path';
 import type { Config } from './config/defaults';
 import type { Registries } from './core/registry';
 
@@ -216,6 +220,10 @@ export interface WorldOptions {
   config: Config;
   /** A numeric seed (reproducible) or a prebuilt RNG. Defaults to seed 0. */
   rng?: RNG | number;
+  /** FOV provider; defaults to the rotJS shadowcasting adapter. */
+  fov?: FovProvider;
+  /** Pathfinding provider; defaults to the rotJS Dijkstra adapter. */
+  path?: PathProvider;
   registries?: Registries;
 }
 
@@ -229,6 +237,8 @@ export function createWorld(opts: WorldOptions): World {
     config: opts.config,
     rng,
     makeTimeline: createTimeline,
+    fov: opts.fov ?? makeRotFov(),
+    path: opts.path ?? makeRotPath(),
     ...(opts.registries ? { registries: opts.registries } : {}),
   };
   const world = assembleWorld(core);

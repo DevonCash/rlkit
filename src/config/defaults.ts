@@ -6,6 +6,7 @@
  * rules. Values land with the systems that read them.
  */
 import type { TileType } from '../core/level';
+import type { Stance } from '../core/component';
 
 export interface Config {
   /** turns → energy conversion helper baseline (decision §21.2). */
@@ -26,6 +27,13 @@ export interface Config {
   readonly equipment: { readonly slots: readonly string[] };
   /** Inventory limits (§10): default item-count cap + optional carry-weight cap. */
   readonly inventory: { readonly defaultCapacity: number; readonly maxCarryWeight?: number };
+  /** Field of view (§11.1): default sight radius (overridden by a sight-radius stat). */
+  readonly fov: { readonly defaultRadius: number };
+  /** Faction stance matrix (§11A.2): default stance + per-faction overrides. */
+  readonly factions: {
+    readonly default: Stance;
+    readonly matrix: Readonly<Record<string, Readonly<Record<string, Stance>>>>;
+  };
 }
 
 export const defaultConfig: Config = {
@@ -42,4 +50,6 @@ export const defaultConfig: Config = {
   combat: { minDamage: 1, variance: 2 },
   equipment: { slots: ['weapon', 'armor', 'ring'] },
   inventory: { defaultCapacity: 26 },
+  fov: { defaultRadius: 8 },
+  factions: { default: 'neutral', matrix: {} },
 };

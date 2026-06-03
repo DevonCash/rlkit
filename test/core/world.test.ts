@@ -3,8 +3,15 @@ import { createWorld } from '../../src/core/world';
 import { defaultConfig } from '../../src/config/defaults';
 import { makeRng } from '../../src/adapters/rng';
 import { createTimeline } from '../../src/sim/timeline';
+import { makeRotFov } from '../../src/adapters/rot-fov';
+import { makeRotPath } from '../../src/adapters/rot-path';
 
-const base = { config: defaultConfig, makeTimeline: createTimeline };
+const base = {
+  config: defaultConfig,
+  makeTimeline: createTimeline,
+  fov: makeRotFov(),
+  path: makeRotPath(),
+};
 
 describe('createWorld', () => {
   it('wires services over empty state', () => {

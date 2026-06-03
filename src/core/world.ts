@@ -14,8 +14,9 @@ import type { Level } from './level';
 import type { RNG, RNGState } from './rng';
 import type { EventBus } from './events';
 import { createEventBus } from './events';
-import { createQueries, type QueryIndex, type Queries } from './query';
+import { createQueries, type QueryIndex } from './query';
 import { createRegistry, type Registries } from './registry';
+import { createReactorRegistry, type ReactorRegistry } from './reactor';
 
 /** A one-shot delayed effect scheduled on the world clock (§7.1). */
 export type TimerId = number;
@@ -70,8 +71,16 @@ export interface WorldState {
 
 export interface Services {
   bus: EventBus;
-  queries: Queries;
+  /**
+   * The query/index layer. Typed as the concrete `QueryIndex` (not just the
+   * read-only `Queries`) because effects — the sole mutators of world state —
+   * update the spatial/component indexes through its maintenance hooks.
+   * Upstream code should use only the `Queries` read methods.
+   */
+  queries: QueryIndex;
   registries: Registries;
+  /** Global/system reactors (entity reactors come from mixins — §7.3). */
+  reactors: ReactorRegistry;
   rng: RNG;
   config: Config;
   timeline: Timeline;
@@ -82,19 +91,18 @@ export interface World {
   services: Services;
 }
 
-/** Read-only view of a world handed to upstream (non-effect) code. */
+/**
+ * Read-only view handed to upstream (non-effect) code. Shallow by design: the
+ * `state`/`services` references are read-only, and the mutation-through-effects
+ * invariant is upheld by discipline + a runtime guard (only `Effect.apply` gets
+ * a mutable `World`). A deep-frozen type was tried and rejected — it makes the
+ * component accessors (`get`/`set`) unusable inside `validate` for no real
+ * safety gain over the guard.
+ */
 export type ReadonlyWorld = {
-  readonly state: DeepReadonly<WorldState>;
+  readonly state: WorldState;
   readonly services: Services;
 };
-
-type DeepReadonly<T> = T extends Map<infer K, infer V>
-  ? ReadonlyMap<K, DeepReadonly<V>>
-  : T extends (infer U)[]
-    ? readonly DeepReadonly<U>[]
-    : T extends object
-      ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
-      : T;
 
 export interface CreateWorldOptions {
   config: Config;
@@ -153,6 +161,7 @@ export function createWorld(opts: CreateWorldOptions): World {
     bus: createEventBus(),
     queries,
     registries,
+    reactors: createReactorRegistry(),
     rng,
     config: opts.config,
     timeline: opts.makeTimeline(state.timeline, opts.config),

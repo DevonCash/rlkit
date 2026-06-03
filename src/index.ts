@@ -9,6 +9,9 @@ import { createWorld as assembleWorld } from './core/world';
 import type { World, CreateWorldOptions } from './core/world';
 import { makeRng } from './adapters/rng';
 import { createTimeline } from './sim/timeline';
+import { registerCoreHandlers } from './sim/handlers';
+import type { ActionHandler } from './core/action';
+import type { Registry } from './core/registry';
 import type { RNG } from './core/rng';
 import type { Config } from './config/defaults';
 import type { Registries } from './core/registry';
@@ -112,6 +115,17 @@ export type {
 export { emptyTimelineState } from './core/world';
 export { createTimeline } from './sim/timeline';
 
+// --- resolve pipeline + handlers (§7.2, §7.4) ------------------------------
+export { resolve, perform } from './sim/action';
+export {
+  registerCoreHandlers,
+  moveHandler,
+  waitHandler,
+  bumpHandler,
+  makeMoveEffect,
+} from './sim/handlers';
+export { runPreReactors, collectReactions } from './sim/reactors';
+
 /** Options for the public {@link createWorld}: a seed or a prebuilt RNG. */
 export interface WorldOptions {
   config: Config;
@@ -132,5 +146,9 @@ export function createWorld(opts: WorldOptions): World {
     makeTimeline: createTimeline,
     ...(opts.registries ? { registries: opts.registries } : {}),
   };
-  return assembleWorld(core);
+  const world = assembleWorld(core);
+  // Register the built-in action handlers at the composition edge (core may not
+  // import sim). Content can override any of them afterward by id.
+  registerCoreHandlers(world.services.registries.handlers as Registry<ActionHandler>);
+  return world;
 }

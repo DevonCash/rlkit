@@ -1,0 +1,42 @@
+{
+  "name": "rlkit",
+  "version": "0.0.0",
+  "description": "A batteries-included TypeScript roguelike engine.",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "devalue": "^5.1.1",
+    "pure-rand": "^6.1.0",
+    "rot-js": "^2.2.1",
+    "ts-pattern": "^5.6.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@fast-check/vitest": "^0.4.1",
+    "eslint": "^9.18.0",
+    "tsdown": "^0.22.1",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.21.0",
+    "vitest": "^4.1.8"
+  }
+}

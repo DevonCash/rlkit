@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Editor / OS noise
+.DS_Store
+*.log
+.idea/
+.vscode/

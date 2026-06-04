@@ -13,13 +13,13 @@ export interface LogView {
   render(log: MessageLog, viewport: Viewport): Overlay[];
 }
 
-export function createLogView(height = 5): LogView {
+export function createLogView(height = 5, fg = '#9cf'): LogView {
   return {
     render(log, viewport): Overlay[] {
       const lines = log.messages().slice(-height);
       const out: Overlay[] = [];
       lines.forEach((line, i) => {
-        out.push(...textOverlays(line.slice(0, viewport.width), 0, i, viewport, '#9cf'));
+        out.push(...textOverlays(line.slice(0, viewport.width), 0, i, viewport, fg));
       });
       return out;
     },

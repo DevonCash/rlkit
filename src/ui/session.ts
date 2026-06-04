@@ -21,6 +21,8 @@ import { commandToAction, isUIIntent } from '../input/command-to-action';
 import { createUIStack, type UIStack, type Modal } from './stack';
 import { composite } from './composite';
 import { createHud, type Hud } from './hud';
+import { createMessageLog, type MessageLog } from './log';
+import { createLogView, type LogView } from './log-view';
 import { createListModal } from './modals/list-modal';
 import { createTargetingModal } from './modals/targeting-modal';
 
@@ -32,6 +34,10 @@ export interface SessionOptions {
   camera?: Camera;
   hud?: Hud;
   ui?: UIStack;
+  /** Message-log model; defaults to one subscribed to the bus via config templates. */
+  log?: MessageLog;
+  /** On-screen log view; defaults to one using the config height/color. */
+  logView?: LogView;
 }
 
 export interface Session {
@@ -45,8 +51,11 @@ export function createSession(opts: SessionOptions): Session {
   const { world, player } = opts;
   const viewport: Viewport = opts.viewport ?? { width: 80, height: 24 };
   const camera: Camera = opts.camera ?? { centerOn: player };
+  const ui = world.services.config.ui;
   const stack = opts.ui ?? createUIStack();
-  const hud = opts.hud ?? createHud(world.services.config.ui.hud.enabled);
+  const hud = opts.hud ?? createHud(ui.hud.enabled, ui.hud.fg);
+  const log = opts.log ?? createMessageLog(world.services.bus, world.services.config.log.templates);
+  const logView = opts.logView ?? createLogView(ui.log.height, ui.log.fg);
 
   // One-shot slot the M7 driver's actionProvider reads.
   let pending: Action | undefined;
@@ -81,6 +90,7 @@ export function createSession(opts: SessionOptions): Session {
       title: 'Inventory',
       items,
       onSelect: (id) => advance({ type: 'useItem', actor: player, item: id }),
+      colors: ui.modal,
     });
   }
 
@@ -98,11 +108,18 @@ export function createSession(opts: SessionOptions): Session {
     }
   }
 
-  function handleIntent(ui: string): void {
-    if (ui === 'open-inventory') stack.push(inventoryModal());
-    else if (ui === 'pickup') pickupHere();
-    else if (ui === 'open-targeting') {
-      stack.push(createTargetingModal({ cursor: playerViewportCursor(), onConfirm: () => {} }));
+  function handleIntent(intent: string): void {
+    if (intent === 'open-inventory') stack.push(inventoryModal());
+    else if (intent === 'pickup') pickupHere();
+    else if (intent === 'open-targeting') {
+      stack.push(
+        createTargetingModal({
+          cursor: playerViewportCursor(),
+          onConfirm: () => {},
+          colors: ui.targeting,
+          viewport,
+        }),
+      );
     }
     // 'confirm'/'cancel' with no modal open are no-ops.
   }
@@ -133,6 +150,7 @@ export function createSession(opts: SessionOptions): Session {
       }
       const world0 = buildFrame(world, viewport, camera);
       const overlays = [
+        ...logView.render(log, viewport),
         ...hud.render(world, player, viewport),
         ...(Array.isArray(topFrame) ? topFrame : []),
       ];

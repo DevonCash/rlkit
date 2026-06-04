@@ -61,7 +61,18 @@ export interface Config {
   /** Input keymap (§14): normalized key combo → command id (fully configurable). */
   readonly keymap: Readonly<Record<string, string>>;
   /** UI layout (§15): HUD + log-view sizing. */
-  readonly ui: { readonly hud: { readonly enabled: boolean }; readonly log: { readonly height: number } };
+  readonly ui: {
+    readonly hud: { readonly enabled: boolean; readonly fg: string };
+    readonly log: { readonly height: number; readonly fg: string };
+    readonly modal: {
+      readonly bg: string;
+      readonly fg: string;
+      readonly title: string;
+      readonly selected: string;
+      readonly muted: string;
+    };
+    readonly targeting: { readonly path: string; readonly cursor: string };
+  };
 }
 
 export const defaultConfig: Config = {
@@ -115,5 +126,10 @@ export const defaultConfig: Config = {
     Enter: 'confirm',
     Escape: 'cancel',
   },
-  ui: { hud: { enabled: true }, log: { height: 5 } },
+  ui: {
+    hud: { enabled: true, fg: '#fff' },
+    log: { height: 5, fg: '#9cf' },
+    modal: { bg: '#001', fg: '#888', title: '#ff0', selected: '#fff', muted: '#aaa' },
+    targeting: { path: '#330', cursor: '#ff0' },
+  },
 };

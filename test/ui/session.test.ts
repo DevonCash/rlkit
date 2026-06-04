@@ -75,4 +75,14 @@ describe('Session routing (§22.14)', () => {
     session.onCommand({ type: 'open-inventory' });
     expect(renderer.toString()).toContain('Inventory'); // the list modal title
   });
+
+  it('composites the message log into the world frame', () => {
+    const { w } = setup();
+    const renderer = new AsciiRenderer();
+    const session = createSession({ world: w, player: 'hero', renderer, viewport: { width: W, height: H } });
+    // A move emits `moved` → the session's message log narrates it via the
+    // config template, and the log view is composited over the world frame.
+    session.onCommand({ type: 'move-east' });
+    expect(renderer.toString()).toContain('hero moves.');
+  });
 });

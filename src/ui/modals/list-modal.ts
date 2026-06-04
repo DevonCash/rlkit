@@ -15,11 +15,29 @@ export interface ListItem<T> {
   value: T;
 }
 
+/** Modal palette (config-surfaced; §15 "Layout is config"). */
+export interface ModalColors {
+  bg: string;
+  fg: string;
+  title: string;
+  selected: string;
+  muted: string;
+}
+
+const DEFAULT_MODAL_COLORS: ModalColors = {
+  bg: '#001',
+  fg: '#888',
+  title: '#ff0',
+  selected: '#fff',
+  muted: '#aaa',
+};
+
 export interface ListModalOptions<T> {
   title?: string;
   items: ListItem<T>[];
   onSelect(value: T): void;
   onCancel?(): void;
+  colors?: ModalColors;
 }
 
 export interface ListModal extends Modal {
@@ -27,22 +45,22 @@ export interface ListModal extends Modal {
   selectedIndex(): number;
 }
 
-const BG: FrameCell = { glyph: ' ', fg: '#888', bg: '#001' };
-
 export function createListModal<T>(opts: ListModalOptions<T>): ListModal {
   let selected = 0;
   const count = opts.items.length;
+  const c = opts.colors ?? DEFAULT_MODAL_COLORS;
+  const bg: FrameCell = { glyph: ' ', fg: c.fg, bg: c.bg };
 
   return {
     selectedIndex: () => selected,
     render(viewport: Viewport): RenderFrame {
-      const cells = blankCells(viewport, BG);
-      writeText(cells, viewport, 1, 0, opts.title ?? 'Menu', '#ff0');
+      const cells = blankCells(viewport, bg);
+      writeText(cells, viewport, 1, 0, opts.title ?? 'Menu', c.title);
       opts.items.forEach((item, i) => {
         const marker = i === selected ? '> ' : '  ';
-        writeText(cells, viewport, 1, 2 + i, marker + item.label, i === selected ? '#fff' : '#aaa');
+        writeText(cells, viewport, 1, 2 + i, marker + item.label, i === selected ? c.selected : c.muted);
       });
-      if (count === 0) writeText(cells, viewport, 1, 2, '(empty)', '#666');
+      if (count === 0) writeText(cells, viewport, 1, 2, '(empty)', c.muted);
       return { width: viewport.width, height: viewport.height, cells, overlays: [] };
     },
     handle(cmd): ModalResult {

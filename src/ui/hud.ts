@@ -19,7 +19,7 @@ export interface Hud {
   render(world: ReadonlyWorld, player: EntityId, viewport: Viewport): Overlay[];
 }
 
-export function createHud(enabled = true): Hud {
+export function createHud(enabled = true, fg = '#fff'): Hud {
   return {
     render(world, player, viewport): Overlay[] {
       if (!enabled) return [];
@@ -29,7 +29,7 @@ export function createHud(enabled = true): Hud {
       const res = get<Resources>(e, 'resources');
       const hp = res?.pools.hp?.current ?? 0;
       const maxHp = stats['max-hp'] ?? 0;
-      return textOverlays(`HP ${hp}/${maxHp}`, 0, viewport.height - 1, viewport, '#fff');
+      return textOverlays(`HP ${hp}/${maxHp}`, 0, viewport.height - 1, viewport, fg);
     },
   };
 }

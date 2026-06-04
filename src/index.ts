@@ -105,6 +105,8 @@ export type { CombatOptions } from './modules/combat';
 export { progressionModule, Experience } from './modules/progression';
 export type { ProgressionOptions } from './modules/progression';
 export { identificationModule, displayName, Identity } from './modules/identification';
+export { rangedModule, aiRangedMixin } from './modules/ranged';
+export type { RangedOptions } from './modules/ranged';
 export {
   createComponentRegistry,
   registerCoreComponents,

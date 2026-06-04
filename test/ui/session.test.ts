@@ -3,9 +3,10 @@ import { createWorld } from '../../src/index';
 import { createSession } from '../../src/ui/session';
 import { AsciiRenderer } from '../../src/render/ascii-renderer';
 import { createLevel, levelCell } from '../../src/core/level';
-import { createEntity, get } from '../../src/core/entity';
-import type { Position } from '../../src/core/component';
+import { createEntity, get, set } from '../../src/core/entity';
+import type { Position, Inventory, Equipped } from '../../src/core/component';
 import { defaultConfig } from '../../src/config/defaults';
+import { deriveStat } from '../../src/sim/stats';
 import { VISIBLE_LAYER } from '../../src/sim/visibility';
 
 const W = 16;
@@ -84,5 +85,85 @@ describe('Session routing (§22.14)', () => {
     // config template, and the log view is composited over the world frame.
     session.onCommand({ type: 'move-east' });
     expect(renderer.toString()).toContain('hero moves.');
+  });
+});
+
+describe('Session command-dispatch registry (§14)', () => {
+  it('routes a game-registered command through the table and can submit an action', () => {
+    const { w, hero } = setup();
+    let fired = 0;
+    const session = createSession({
+      world: w,
+      player: 'hero',
+      viewport: { width: W, height: H },
+      commands: {
+        // A custom command that nudges the player east via submit().
+        'step-east': (_cmd, ctx) => {
+          fired++;
+          ctx.submit({ type: 'move', actor: ctx.player, dir: { x: 1, y: 0 } });
+        },
+      },
+    });
+    const before = hx(hero);
+    session.onCommand({ type: 'step-east' });
+    expect(fired).toBe(1);
+    expect(hx(hero)).toBe(before + 1); // the submitted action advanced the world
+  });
+
+  it('a game command can override a built-in default', () => {
+    const { w, hero } = setup();
+    let intercepted = 0;
+    const session = createSession({
+      world: w,
+      player: 'hero',
+      viewport: { width: W, height: H },
+      commands: { 'move-east': () => { intercepted++; } }, // swallow movement
+    });
+    session.onCommand({ type: 'move-east' });
+    expect(intercepted).toBe(1);
+    expect(hx(hero)).toBe(5); // world did NOT advance — the override took over
+  });
+
+  it('item-default equips a carried weapon (raising its stat) and uses a consumable', () => {
+    const { w } = setup();
+    // Give the hero an equipped component and two items: a sword and a potion.
+    const hero = w.state.entities.get('hero')!;
+    hero.mixins.push('equippable');
+    w.services.queries.unindex(hero);
+    set(hero, { type: 'equipped', slots: {} });
+    const inv = get<Inventory>(hero, 'inventory')!;
+    const sword = createEntity('sword', [
+      { type: 'item', name: 'Sword', stackable: false, qty: 1 },
+      { type: 'equipment', slot: 'weapon', bonuses: { attack: 4 } },
+    ]);
+    const potion = createEntity('potion', [
+      { type: 'item', name: 'Potion', stackable: false, qty: 1 },
+      { type: 'consumable', uses: 1, effect: 'heal-10' },
+    ]);
+    w.state.entities.set('sword', sword);
+    w.state.entities.set('potion', potion);
+    w.services.queries.index(hero);
+    w.services.queries.index(sword);
+    w.services.queries.index(potion);
+    inv.items.push('sword', 'potion');
+    // Drop the hero's hp so the heal is observable.
+    get<{ type: 'resources'; pools: Record<string, { current: number }> }>(hero, 'resources')!.pools.hp!.current = 5;
+
+    const session = createSession({ world: w, player: 'hero', viewport: { width: W, height: H } });
+
+    // Equip the sword → it lands in the weapon slot, +4 attack flows through.
+    const baseAttack = deriveStat(hero, w, 'attack');
+    session.dispatch({ type: 'item-default', item: 'sword' });
+    expect(deriveStat(hero, w, 'attack')).toBe(baseAttack + 4);
+    expect(get<Equipped>(hero, 'equipped')!.slots.weapon).toBe('sword');
+
+    // Dispatch again → toggle unequip (the slot clears).
+    session.dispatch({ type: 'item-default', item: 'sword' });
+    expect(get<Equipped>(hero, 'equipped')!.slots.weapon).toBeUndefined();
+
+    // Use the potion → heal-10 restores hp and consumes the charge (item gone).
+    session.dispatch({ type: 'item-default', item: 'potion' });
+    expect(get<{ type: 'resources'; pools: Record<string, { current: number }> }>(hero, 'resources')!.pools.hp!.current).toBe(15);
+    expect(w.state.entities.has('potion')).toBe(false);
   });
 });

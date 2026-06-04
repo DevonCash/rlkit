@@ -2,13 +2,18 @@
  * session — the input/UI/driver controller (§14/§15).
  *
  * The stateful glue: on each command, route to the top modal (which captures
- * input — the §22.14 routing) or translate it to a player action that feeds the
- * M7 driver through a one-shot pending slot, then advance the world and render.
+ * input — the §22.14 routing) or dispatch it through the **command registry** to
+ * a handler that translates it into the player's `Action`, feeds the M7 driver
+ * through a one-shot pending slot, advances the world, and re-renders. The
+ * default table reproduces the built-in behavior; games extend it via
+ * `SessionOptions.commands` (descend/save/load/…). The inventory modal dispatches
+ * an `item-default` command through the same table instead of hardcoding a use —
+ * one mechanism for keystrokes and menu selections alike.
  * DOM-free; `examples/web` drives it with a real `KeyboardInput`/`CanvasRenderer`.
  */
 import { get } from '../core/entity';
 import type { EntityId } from '../core/entity';
-import type { Position, Inventory, Item } from '../core/component';
+import type { Position, Inventory, Item, Equipment, Equipped, Consumable } from '../core/component';
 import type { Action } from '../core/action';
 import type { World } from '../core/world';
 import { cellOf } from '../core/coords';
@@ -25,6 +30,7 @@ import { createMessageLog, type MessageLog } from './log';
 import { createLogView, type LogView } from './log-view';
 import { createListModal } from './modals/list-modal';
 import { createTargetingModal } from './modals/targeting-modal';
+import type { CommandCtx, CommandTable } from './commands';
 
 export interface SessionOptions {
   world: World;
@@ -38,10 +44,16 @@ export interface SessionOptions {
   log?: MessageLog;
   /** On-screen log view; defaults to one using the config height/color. */
   logView?: LogView;
+  /** Extra command handlers, merged over (and overriding) the built-in defaults. */
+  commands?: CommandTable;
 }
 
 export interface Session {
   onCommand(cmd: Command): void;
+  /** Feed an action straight to the driver (advance one turn) and re-render. */
+  submit(action: Action): void;
+  /** Route a command through the command table (bypassing the modal check). */
+  dispatch(cmd: Command): void;
   render(): void;
   pushModal(modal: Modal): void;
   readonly stack: UIStack;
@@ -89,7 +101,9 @@ export function createSession(opts: SessionOptions): Session {
     return createListModal<EntityId>({
       title: 'Inventory',
       items,
-      onSelect: (id) => advance({ type: 'useItem', actor: player, item: id }),
+      // Dispatch through the registry so a selection is just another command —
+      // the default `item-default` handler equips gear / uses consumables.
+      onSelect: (id) => dispatch({ type: 'item-default', item: id }),
       colors: ui.modal,
     });
   }
@@ -108,10 +122,41 @@ export function createSession(opts: SessionOptions): Session {
     }
   }
 
-  function handleIntent(intent: string): void {
-    if (intent === 'open-inventory') stack.push(inventoryModal());
-    else if (intent === 'pickup') pickupHere();
-    else if (intent === 'open-targeting') {
+  /** The default item interaction: toggle-equip gear, otherwise use a consumable. */
+  function itemDefault(cmd: Command): void {
+    const itemId = (cmd as { item?: string }).item;
+    if (typeof itemId !== 'string') return;
+    const item = world.state.entities.get(itemId);
+    if (!item) return;
+    const eq = get<Equipment>(item, 'equipment');
+    if (eq) {
+      const pl = world.state.entities.get(player);
+      const equipped = pl && get<Equipped>(pl, 'equipped');
+      if (equipped && equipped.slots[eq.slot] === itemId) advance({ type: 'unequip', actor: player, slot: eq.slot });
+      else advance({ type: 'equip', actor: player, item: itemId });
+      return;
+    }
+    if (get<Consumable>(item, 'consumable')) advance({ type: 'useItem', actor: player, item: itemId });
+  }
+
+  // --- the command table: built-in defaults, then game overrides ------------
+  const moveLike = (cmd: Command): void => {
+    const r = commandToAction(cmd, { player });
+    if (r !== undefined && !isUIIntent(r)) advance(r);
+  };
+  const defaults: CommandTable = {
+    wait: moveLike,
+    'move-north': moveLike,
+    'move-ne': moveLike,
+    'move-east': moveLike,
+    'move-se': moveLike,
+    'move-south': moveLike,
+    'move-sw': moveLike,
+    'move-west': moveLike,
+    'move-nw': moveLike,
+    'open-inventory': () => stack.push(inventoryModal()),
+    pickup: () => pickupHere(),
+    'open-targeting': () =>
       stack.push(
         createTargetingModal({
           cursor: playerViewportCursor(),
@@ -119,14 +164,31 @@ export function createSession(opts: SessionOptions): Session {
           colors: ui.targeting,
           viewport,
         }),
-      );
-    }
-    // 'confirm'/'cancel' with no modal open are no-ops.
+      ),
+    'item-default': (cmd) => itemDefault(cmd),
+  };
+  const table: CommandTable = { ...defaults, ...opts.commands };
+
+  const ctx: CommandCtx = {
+    world,
+    player,
+    submit: advance,
+    pushModal: (m) => stack.push(m),
+    dispatch: (cmd) => dispatch(cmd),
+    render: () => session.render(),
+  };
+
+  /** Route a command through the table (no modal check — programmatic entry). */
+  function dispatch(cmd: Command): void {
+    const handler = table[cmd.type];
+    if (handler) handler(cmd, ctx);
   }
 
   const session: Session = {
     stack,
     pushModal: (m) => stack.push(m),
+    submit: advance,
+    dispatch,
     onCommand(cmd) {
       const top = stack.top();
       if (top) {
@@ -134,10 +196,7 @@ export function createSession(opts: SessionOptions): Session {
         session.render();
         return;
       }
-      const result = commandToAction(cmd, { player });
-      if (result === undefined) return;
-      if (isUIIntent(result)) handleIntent(result.ui);
-      else advance(result);
+      dispatch(cmd);
       session.render();
     },
     render() {

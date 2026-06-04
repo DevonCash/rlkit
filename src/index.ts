@@ -342,6 +342,7 @@ export { createLogView } from './ui/log-view';
 export type { LogView } from './ui/log-view';
 export { createSession } from './ui/session';
 export type { Session, SessionOptions } from './ui/session';
+export type { CommandCtx, CommandHandler, CommandTable } from './ui/commands';
 
 // --- save / load (§16) -----------------------------------------------------
 export { CURRENT_SCHEMA_VERSION, parseSave, parseBlueprint, migrate } from './content/validate';

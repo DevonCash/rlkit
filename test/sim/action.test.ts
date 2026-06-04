@@ -28,7 +28,11 @@ describe('resolve — outcomes (§22.5)', () => {
     expect(out.status).toBe('done');
     if (out.status === 'done') {
       expect(out.cost).toBe(w.services.config.baseActionCost);
-      expect(out.events).toEqual([{ type: 'moved', entity: 'hero', from: 6, to: 7 }]);
+      expect(out.events).toEqual([
+        { type: 'moved', entity: 'hero', from: 6, to: 7 },
+        { type: 'entity:exited', entity: 'hero', cell: 6, levelId: 'L' },
+        { type: 'entity:entered', entity: 'hero', cell: 7, levelId: 'L' },
+      ]);
     }
     expect(get<Position>(w.state.entities.get('hero')!, 'position')!.x).toBe(2);
   });

@@ -44,7 +44,13 @@ export function makeMoveEffect(actorId: EntityId, toX: number, toY: number): Eff
       const to = cellOf({ x: toX, y: toY }, level.width);
       set(e, { ...pos, x: toX, y: toY });
       world.services.queries.place(actorId, pos.levelId, to);
-      return [{ type: 'moved', entity: actorId, from, to }];
+      // Movement emits place-transition events so cell/zone/tile triggers fire
+      // (§11A.5). Shared effect → relocate AND swap both emit for their mover.
+      return [
+        { type: 'moved', entity: actorId, from, to },
+        { type: 'entity:exited', entity: actorId, cell: from, levelId: pos.levelId },
+        { type: 'entity:entered', entity: actorId, cell: to, levelId: pos.levelId },
+      ];
     },
   };
 }

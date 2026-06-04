@@ -9,10 +9,34 @@ exports[`determinism golden run (§22.13) > a scripted run under a fixed seed pr
     "type": "moved",
   },
   {
+    "cell": 21,
+    "entity": "hero",
+    "levelId": "L",
+    "type": "entity:exited",
+  },
+  {
+    "cell": 22,
+    "entity": "hero",
+    "levelId": "L",
+    "type": "entity:entered",
+  },
+  {
     "entity": "hero",
     "from": 22,
     "to": 23,
     "type": "moved",
+  },
+  {
+    "cell": 22,
+    "entity": "hero",
+    "levelId": "L",
+    "type": "entity:exited",
+  },
+  {
+    "cell": 23,
+    "entity": "hero",
+    "levelId": "L",
+    "type": "entity:entered",
   },
   {
     "entity": "hero",
@@ -21,10 +45,34 @@ exports[`determinism golden run (§22.13) > a scripted run under a fixed seed pr
     "type": "moved",
   },
   {
+    "cell": 23,
+    "entity": "hero",
+    "levelId": "L",
+    "type": "entity:exited",
+  },
+  {
+    "cell": 24,
+    "entity": "hero",
+    "levelId": "L",
+    "type": "entity:entered",
+  },
+  {
     "entity": "hero",
     "from": 24,
     "to": 25,
     "type": "moved",
+  },
+  {
+    "cell": 24,
+    "entity": "hero",
+    "levelId": "L",
+    "type": "entity:exited",
+  },
+  {
+    "cell": 25,
+    "entity": "hero",
+    "levelId": "L",
+    "type": "entity:entered",
   },
   {
     "cell": 26,

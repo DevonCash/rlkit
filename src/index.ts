@@ -186,6 +186,7 @@ export {
   moveHandler,
   waitHandler,
   attackHandler,
+  damageHandler,
   makeMoveEffect,
 } from './sim/handlers';
 export { runPreReactors, collectReactions } from './sim/reactors';

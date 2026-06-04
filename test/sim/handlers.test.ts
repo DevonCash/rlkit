@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolve } from '../../src/sim/action';
-import { get } from '../../src/core/entity';
+import { createEntity, get } from '../../src/core/entity';
 import type { Position } from '../../src/core/component';
 import { cellOf } from '../../src/core/coords';
 import { setTile } from '../../src/core/level';
@@ -81,6 +81,28 @@ describe('move handler — dispatch (relocate/swap/attack/bump)', () => {
     const out = resolve(w, { type: 'move', actor: 'hero', dir: { x: 1, y: 0 } });
     expect(out.status).toBe('rejected');
     expect(get<Position>(w.state.entities.get('hero')!, 'position')!.x).toBe(1);
+  });
+
+  it('walks onto a non-blocking occupant (a floor item) instead of bumping it', () => {
+    // Items are entities (a sword on the floor); they must not block a step —
+    // you walk onto the cell and then pick it up. `config.movement.passable`
+    // lists the walk-over component types (item, stairs).
+    const w = makeWorld();
+    w.state.levels.set('L', makeLevel('L', 6, 6));
+    spawnAt(w, 'hero', 'L', 1, 1);
+    const sword = createEntity('sword', [
+      { type: 'position', x: 2, y: 1, levelId: 'L' },
+      { type: 'item', name: 'Sword', stackable: false, qty: 1 },
+    ]);
+    w.state.entities.set('sword', sword);
+    w.services.queries.index(sword);
+    w.services.queries.place('sword', 'L', cellOf({ x: 2, y: 1 }, 6));
+
+    const out = resolve(w, { type: 'move', actor: 'hero', dir: { x: 1, y: 0 } });
+    expect(out.status).toBe('done');
+    expect(get<Position>(w.state.entities.get('hero')!, 'position')!.x).toBe(2);
+    // hero and item now share the cell (ready for a `pickup`).
+    expect([...w.services.queries.at(cellOf({ x: 2, y: 1 }, 6), 'L')].sort()).toEqual(['hero', 'sword']);
   });
 
   it('blocks (no friendly fire) when bumping an ally', () => {

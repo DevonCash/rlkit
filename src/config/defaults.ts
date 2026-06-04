@@ -35,6 +35,12 @@ export interface Config {
   readonly equipment: { readonly slots: readonly string[] };
   /** Inventory limits (§10): default item-count cap + optional carry-weight cap. */
   readonly inventory: { readonly defaultCapacity: number; readonly maxCarryWeight?: number };
+  /**
+   * Movement (§7.4): component types whose entities do NOT block a step — the
+   * mover walks onto the cell instead of bumping. Floor items and stairs are the
+   * engine's intrinsic walk-over kinds; games can extend the set.
+   */
+  readonly movement: { readonly passable: readonly string[] };
   /** Field of view (§11.1): default sight radius (overridden by a sight-radius stat). */
   readonly fov: { readonly defaultRadius: number };
   /** Faction stance matrix (§11A.2): default stance + per-faction overrides. */
@@ -91,6 +97,7 @@ export const defaultConfig: Config = {
   combat: { minDamage: 1, variance: 2 },
   equipment: { slots: ['weapon', 'armor', 'ring'] },
   inventory: { defaultCapacity: 26 },
+  movement: { passable: ['item', 'stairs'] },
   fov: { defaultRadius: 8 },
   factions: { default: 'neutral', matrix: {} },
   fields: {

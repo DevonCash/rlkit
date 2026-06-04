@@ -74,12 +74,17 @@ type MoveOutcome =
 function classify(ctx: ActionContext, level: Level, toX: number, toY: number): MoveOutcome {
   const cell = cellOf({ x: toX, y: toY }, level.width);
   const pos = get<Position>(ctx.world.state.entities.get(ctx.action.actor)!, 'position')!;
+  const passable = ctx.world.services.config.movement.passable;
 
   for (const id of ctx.world.services.queries.at(cell, pos.levelId)) {
     if (id === ctx.action.actor) continue;
     const other = ctx.world.state.entities.get(id);
-    if (other && other.mixins.includes('swappable')) return { kind: 'swap', toX, toY, other: id };
-    if (other && ctx.world.services.registries.handlers?.has('attack')) {
+    if (!other) continue;
+    // Walk-over occupants (floor items, stairs) never block — keep scanning for
+    // a real obstacle (a creature) sharing the cell, else fall through to relocate.
+    if (passable.some((t) => other.components.has(t))) continue;
+    if (other.mixins.includes('swappable')) return { kind: 'swap', toX, toY, other: id };
+    if (ctx.world.services.registries.handlers?.has('attack')) {
       // Bumping a creature attacks it — but never an ALLY (no friendly fire).
       // Hostiles and neutrals are attackable on bump (the roguelike default);
       // an ally blocks instead. Make an NPC `swappable` to walk through it.

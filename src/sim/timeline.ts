@@ -66,6 +66,17 @@ export function createTimeline(state: TimelineState, config: Config): Timeline {
       if (i >= 0) state.timers.splice(i, 1);
     },
 
+    peekNextDue(): number {
+      let due = Infinity;
+      for (const a of state.actors) due = Math.min(due, state.worldClock + ticksUntilReady(a.energy, a.speed));
+      for (const t of state.timers) due = Math.min(due, Math.max(t.fireAt, state.worldClock));
+      return due;
+    },
+
+    advanceClock(delta: number) {
+      advance(delta);
+    },
+
     next(): Entry {
       if (state.actors.length === 0 && state.timers.length === 0) {
         throw new Error('Timeline.next: no actors or timers scheduled');

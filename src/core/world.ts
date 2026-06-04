@@ -59,6 +59,10 @@ export interface Timeline {
   cancel(id: TimerId): void;
   /** The next entry due; advances the world clock as needed (does not spend energy). */
   next(): Entry;
+  /** World tick at which the soonest actor/timer fires (`Infinity` if none) — real-time pacing. */
+  peekNextDue(): number;
+  /** Advance the world clock by `delta`, accruing energy, without processing entries (real-time pacing). */
+  advanceClock(delta: number): void;
   /** An actor acted: spend `cost` energy and advance its per-actor clock. */
   reschedule(id: EntityId, cost: number): void;
   /** Current world clock. */

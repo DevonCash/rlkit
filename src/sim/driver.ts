@@ -92,3 +92,59 @@ export function step(world: World, opts: TakeTurnOptions): TurnResult {
     if (result.kind !== 'acted') return result;
   }
 }
+
+export interface TickRealtimeOptions {
+  player: EntityId;
+  /** The player's buffered action, consumed once when the player's turn comes up. */
+  action?: Action;
+  /** World-ticks of time to advance this call (derive from wall time + a fixed timestep). */
+  ticks: number;
+}
+
+export interface RealtimeResult {
+  worldClock: number;
+  /** True if the player took a turn this call (caller clears its input buffer). */
+  playerActed: boolean;
+  /** True if nothing remains to drive (e.g. the player left the timeline — death). */
+  idle: boolean;
+}
+
+/**
+ * Real-time driver (§6): advance the world by `ticks` world-ticks, processing
+ * every actor/timer that becomes due in that window. Unlike `step`, it NEVER
+ * blocks on input — the player's turn consumes the buffered `action`, or a
+ * `wait` — so the caller can pace it from a wall clock (a fixed logical timestep
+ * keeps the simulation deterministic regardless of frame rate). The turn-based
+ * `takeTurn`/`step` are unchanged; this is an additive alternate driver.
+ */
+export function tickRealtime(world: World, opts: TickRealtimeOptions): RealtimeResult {
+  const timeline = world.services.timeline;
+  const target = timeline.worldClock + Math.max(0, opts.ticks);
+  let buffered = opts.action;
+  let playerActed = false;
+  let idle = false;
+
+  // Feeds the player a real action every turn (buffered once, else wait) so the
+  // driver never returns `awaiting-input`.
+  const actionProvider = (): Action => {
+    const a = buffered ?? { type: 'wait', actor: opts.player };
+    buffered = undefined;
+    return a;
+  };
+
+  while (timeline.peekNextDue() <= target) {
+    const result = takeTurn(world, { player: opts.player, actionProvider });
+    if (result.kind === 'idle') {
+      idle = true;
+      break;
+    }
+    if (result.actor === opts.player) playerActed = true;
+  }
+  // Let the remaining time pass so energy keeps accruing when nothing was due.
+  if (!idle && timeline.worldClock < target) timeline.advanceClock(target - timeline.worldClock);
+
+  // Idle = the player can no longer act (died / removed), so there's nothing to
+  // drive — true even when the timeline emptied without `takeTurn` running.
+  idle = idle || !world.state.timeline.actors.some((a) => a.id === opts.player);
+  return { worldClock: timeline.worldClock, playerActed, idle };
+}

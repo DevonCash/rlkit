@@ -32,19 +32,23 @@ export const desireAiMixin: Mixin = {
 
     const store = world.services.fields.forLevel(pos.levelId);
     const fieldReg = world.services.registries.fields as Registry<FieldDescriptor> | undefined;
+    // Descent must use the SAME neighbor topology the fields were computed with,
+    // or a 4-mover on an 8-connected field can stall short of the goal (and an
+    // 8-scan on a 4-field picks misleading diagonal shortcuts). Derive it from
+    // the consumed descriptors, not an unrelated actor flag.
+    let diagonals = false;
     for (const d of data.desires) {
       const desc = fieldReg?.tryGet(d.fieldId);
-      if (desc) store.ensure(desc);
+      if (desc) {
+        store.ensure(desc);
+        if (desc.diagonals) diagonals = true;
+      }
     }
 
     const composite = store.composite(data.desires as DesireProfile);
     const here = cellOf({ x: pos.x, y: pos.y }, level.width);
     const palette = world.services.tiles;
-    const nbs = (self.mixins.includes('diagonal') ? neighbors8 : neighbors4)(
-      here,
-      level.width,
-      level.height,
-    );
+    const nbs = (diagonals ? neighbors8 : neighbors4)(here, level.width, level.height);
 
     // Lowest-composite walkable neighbor that strictly improves on the current cell.
     let best = composite[here]!;

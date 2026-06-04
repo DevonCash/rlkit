@@ -53,6 +53,26 @@ describe('DesireAI (§22.11)', () => {
     expect((action as { dir: { x: number } }).dir.x).toBe(1); // east, toward the player
   });
 
+  it('descends with the FIELD topology — a diagonal goal field yields a diagonal step', () => {
+    // Regression: descent must match the topology the field was computed with.
+    // A purely-diagonal goal on a `diagonals: true` field has NO strictly-better
+    // orthogonal neighbor, so a 4-neighbor scan would stall short of the goal.
+    const { w, lvl } = setup();
+    const goal = levelCell(lvl, 4, 4);
+    const desc: FieldDescriptor = {
+      id: 'diag-goal',
+      kind: 'goal',
+      diagonals: true,
+      params: { source: { kind: 'cells', cells: [goal] } },
+    };
+    (w.services.registries.fields as Registry<FieldDescriptor>).register('diag-goal', desc);
+    place(w, lvl, 'mon', 2, 2, [{ type: 'desire-ai', desires: [{ fieldId: 'diag-goal', weight: 1 }] }], ['desire-ai']);
+
+    const action = decideAction(w, 'mon');
+    expect(action?.type).toBe('move');
+    expect((action as { dir: { x: number; y: number } }).dir).toEqual({ x: 1, y: 1 }); // diagonal toward (4,4)
+  });
+
   it('breaks ties deterministically via the RNG', () => {
     const run = () => {
       const { w, lvl } = setup();

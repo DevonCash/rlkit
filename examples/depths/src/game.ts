@@ -46,6 +46,15 @@ import { makeLevel, spawnPlayer } from './dungeon';
 import { MAX_DEPTH, biomeForDepth } from './biomes';
 
 export const SAVE_KEY = 'depths-save';
+/**
+ * Game save-format version. The engine's `schemaVersion` only guards the
+ * `WorldState` *shape*; it can't know when game *content* changes in a way that
+ * breaks old saves (e.g. adding the `info` component). So the game stamps its
+ * saves and discards any that don't match — bump this on an incompatible
+ * content/save change rather than loading a degraded world.
+ */
+const SAVE_VERSION = 1;
+const SAVE_HEADER = `depths:${SAVE_VERSION}`;
 const FINAL_LEVEL = `depth-${MAX_DEPTH}`;
 /** Rows reserved at the bottom of the canvas for the message log. */
 const LOG_ROWS = 6;
@@ -163,6 +172,27 @@ export function createGame(deps: GameDeps): Game {
 
   const colors = gameConfig.ui.modal;
 
+  /** Persist the world behind the game's version header. */
+  function writeSave(): void {
+    deps.storage.set(`${SAVE_HEADER}\n${encodeSave(world)}`);
+  }
+
+  /**
+   * The engine save payload if a *compatible* save exists, else null. Legacy or
+   * version-mismatched saves are discarded on read so they can never silently
+   * load a degraded world.
+   */
+  function readSave(): string | null {
+    const raw = deps.storage.get();
+    if (raw === null) return null;
+    const nl = raw.indexOf('\n');
+    if (nl < 0 || raw.slice(0, nl) !== SAVE_HEADER) {
+      deps.storage.clear();
+      return null;
+    }
+    return raw.slice(nl + 1);
+  }
+
   function bind(next: { world: World; player: string }): void {
     world = next.world;
     player = next.player;
@@ -267,29 +297,27 @@ export function createGame(deps: GameDeps): Game {
     'open-equipment': () => equipmentModal(),
     look: () => startLook(),
     save: () => {
-      deps.storage.set(encodeSave(world));
+      writeSave();
       log?.add('Game saved.');
     },
     load: () => {
-      const raw = deps.storage.get();
-      if (raw) bind(loadGame(raw));
+      const payload = readSave();
+      if (payload) bind(loadGame(payload));
+      else log?.add('No compatible save.');
     },
   };
 
   function titleModal(): void {
     const items = [{ label: 'New Game', value: 'new' }];
-    if (deps.storage.get()) items.unshift({ label: 'Continue', value: 'continue' });
+    if (readSave()) items.unshift({ label: 'Continue', value: 'continue' });
     session.pushModal(
       createListModal<string>({
         title: 'D E P T H S',
         items,
         onSelect: (v) => {
-          if (v === 'continue') {
-            const raw = deps.storage.get();
-            if (raw) bind(loadGame(raw));
-          } else {
-            bind(newGame(deps.seed));
-          }
+          const payload = v === 'continue' ? readSave() : null;
+          if (payload) bind(loadGame(payload));
+          else bind(newGame(deps.seed));
         },
         colors,
       }),
@@ -362,7 +390,7 @@ export function createGame(deps: GameDeps): Game {
     get player() {
       return player;
     },
-    hasSave: () => deps.storage.get() !== null,
+    hasSave: () => readSave() !== null,
     onCommand(cmd) {
       session.onCommand(cmd);
       checkGameOver();

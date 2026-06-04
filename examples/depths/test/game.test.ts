@@ -110,6 +110,35 @@ describe('Depths — game over', () => {
   });
 });
 
+describe('Depths — save versioning', () => {
+  const vp = { width: 40, height: 20 };
+
+  it('stamps saves with a version header and only continues compatible ones', () => {
+    const store = memStore();
+    const g = createGame({ viewport: vp, storage: store, seed: 3 });
+    g.start();
+    g.onCommand({ type: 'confirm' }); // New Game
+    expect(g.hasSave()).toBe(false);
+
+    g.onCommand({ type: 'save' });
+    const raw = store.get()!;
+    expect(raw.startsWith('depths:')).toBe(true);
+    expect(g.hasSave()).toBe(true);
+
+    // A fresh controller over the same storage sees the compatible save.
+    const g2 = createGame({ viewport: vp, storage: store, seed: 9 });
+    expect(g2.hasSave()).toBe(true);
+  });
+
+  it('discards a legacy / version-mismatched save on read (no silent degrade)', () => {
+    const legacy = memStore();
+    legacy.set('1\nlegacy-engine-blob'); // old un-versioned format
+    const g = createGame({ viewport: vp, storage: legacy, seed: 1 });
+    expect(g.hasSave()).toBe(false);
+    expect(legacy.get()).toBeNull(); // cleared so it can't be loaded
+  });
+});
+
 describe('Depths — save / load', () => {
   it('round-trips world state and keeps the level provider working after load', () => {
     const fresh = newGame(2024);

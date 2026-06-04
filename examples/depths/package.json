@@ -1,0 +1,17 @@
+{
+  "name": "rlkit-example-depths",
+  "private": true,
+  "type": "module",
+  "description": "Depths — a full demo game on rlkit: themed levels, save/load, enemies and equipment (separate DOM app, not part of the engine build).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vite": "^7.0.0",
+    "vitest": "^4.1.8"
+  }
+}

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Depths — an rlkit game</title>
+    <style>
+      body { background: #0a0a0c; color: #ccc; margin: 0; font-family: monospace; }
+      h1 { font-size: 15px; text-align: center; padding: 8px; margin: 0; color: #b97; letter-spacing: 2px; }
+      canvas { display: block; margin: 8px auto; background: #000; image-rendering: pixelated; }
+      p { text-align: center; color: #777; font-size: 12px; line-height: 1.6; }
+      code { color: #9b8; }
+    </style>
+  </head>
+  <body>
+    <h1>D E P T H S</h1>
+    <canvas id="game" width="1024" height="576"></canvas>
+    <p>
+      move: vi-keys / arrows / numpad &middot; <code>g</code> pick up &middot; <code>i</code> inventory &middot;
+      <code>e</code> equipment &middot; <code>&gt;</code> descend &middot; <code>&lt;</code> ascend &middot;
+      <code>.</code> wait<br />
+      <code>S</code> save &middot; <code>L</code> load &middot; <code>Enter</code> confirm &middot; <code>Esc</code> cancel
+    </p>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

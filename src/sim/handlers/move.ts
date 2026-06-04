@@ -23,6 +23,7 @@ import type { ActionContext, Effect } from '../../core/action';
 import type { GameEvent } from '../../core/events';
 import { isWalkable, type Level } from '../../core/level';
 import type { ReadonlyWorld } from '../../core/world';
+import { stanceBetween } from '../factions';
 
 /** Build an effect that relocates `actorId` to `(toX,toY)` on its current level. */
 export function makeMoveEffect(actorId: EntityId, toX: number, toY: number): Effect {
@@ -78,7 +79,14 @@ function classify(ctx: ActionContext, level: Level, toX: number, toY: number): M
     if (id === ctx.action.actor) continue;
     const other = ctx.world.state.entities.get(id);
     if (other && other.mixins.includes('swappable')) return { kind: 'swap', toX, toY, other: id };
-    if (ctx.world.services.registries.handlers?.has('attack')) return { kind: 'attack', target: id, cell };
+    if (other && ctx.world.services.registries.handlers?.has('attack')) {
+      // Bumping a creature attacks it — but never an ALLY (no friendly fire).
+      // Hostiles and neutrals are attackable on bump (the roguelike default);
+      // an ally blocks instead. Make an NPC `swappable` to walk through it.
+      const actor = ctx.world.state.entities.get(ctx.action.actor);
+      if (actor && stanceBetween(ctx.world, actor, other) === 'allied') return { kind: 'blocked' };
+      return { kind: 'attack', target: id, cell };
+    }
     return { kind: 'blocked' };
   }
 

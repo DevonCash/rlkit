@@ -83,6 +83,21 @@ describe('move handler — dispatch (relocate/swap/attack/bump)', () => {
     expect(get<Position>(w.state.entities.get('hero')!, 'position')!.x).toBe(1);
   });
 
+  it('blocks (no friendly fire) when bumping an ally', () => {
+    const w = makeWorld();
+    w.state.levels.set('L', makeLevel('L', 6, 6));
+    const hero = spawnAt(w, 'hero', 'L', 1, 1);
+    spawnAt(w, 'ally', 'L', 2, 1);
+    // Hero regards 'ally' as allied (per-entity override beats the matrix).
+    hero.components.set('allegiance', { type: 'allegiance', faction: 'player', overrides: { ally: 'allied' } });
+
+    const out = resolve(w, { type: 'move', actor: 'hero', dir: { x: 1, y: 0 } });
+    expect(out.status).toBe('fizzled'); // blocked — turn spent, no attack, no move
+    expect(get<Position>(w.state.entities.get('hero')!, 'position')!.x).toBe(1);
+    // The ally is unharmed (no attack dispatched).
+    expect(get<Position>(w.state.entities.get('ally')!, 'position')!.x).toBe(2);
+  });
+
   it('bumps a wall: a free (cost 0) `bumped` event, no relocation', () => {
     const w = makeWorld();
     const level = makeLevel('L', 6, 6);

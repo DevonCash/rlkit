@@ -83,6 +83,8 @@ interface Trigger {                       // schema-first; testId/effectId refer
 
 Movement emits `entity:entered`/`entity:exited`; the trigger system matches scope + `testId` and runs `effectId`. This is the home for pressure plates, traps, on-step hazards, room ambushes, and biome auras.
 
+**Implementation (M11).** All three scopes ship. **Tile** triggers are stateless rules keyed by tile-type id (a `tileTriggers` registry, reconstructed on load); **cell** and **zone** triggers are placed *instances* in `WorldState.triggers` (so `once`/`fired` and zones promoted from regions persist and round-trip). A trigger-effect (registry id) returns follow-up *actions* and/or schedules a delayed effect; all domain mutation (e.g. a trap's damage) flows through the `damage` action → the effect pipeline, never directly. Authoring: `addZone` / `addTrigger` / `addTileTrigger` / `regionToZone`. Proof content: a trap (cell → delayed detonation), a room ambush (zone → immediate strike), and an on-step hazard (tile).
+
 ### 11A.6 Dice expressions (utility)
 
 A content-facing helper so config can express randomness directly. Deterministic through the seeded RNG.

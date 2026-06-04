@@ -23,6 +23,7 @@ function sampleState(): WorldState {
     rng: [1, 2, 3, 4],
     turn: 7,
     nextEntityId: 1,
+    triggers: { zones: [], triggers: [] },
   };
 }
 

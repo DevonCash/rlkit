@@ -17,6 +17,7 @@ import type { GameEvent } from '../core/events';
 import type { ReactorRegistry } from '../core/reactor';
 import type { Entity, EntityId } from '../core/entity';
 import type { ReadonlyWorld, World } from '../core/world';
+import { collectTriggerReactions } from './triggers';
 
 function mixinRegistry(world: ReadonlyWorld): MixinRegistry {
   return world.services.registries.mixins as unknown as MixinRegistry;
@@ -47,8 +48,8 @@ export function runPreReactors(world: World, ctx: ActionContext): void {
       mixin.onAction?.(ctx, self);
     }
   }
-  // Global/system reactors. Entity reactors come from mixins (above); cell/zone
-  // scopes have no dispatch path until triggers/zones land in M11.
+  // Global/system reactors. Entity reactors come from mixins (above); place
+  // scopes (cell/zone) dispatch as post-phase triggers (§11A.5), not here.
   for (const r of reactorRegistry(world).pre(ctx.action.type)) {
     if (r.scope === 'global') r.react(ctx);
   }
@@ -71,9 +72,14 @@ export function collectReactions(world: World, event: GameEvent): Action[] {
   }
 
   for (const r of reactorRegistry(world).post(event.type)) {
-    if (r.scope !== 'global') continue; // cell/zone: no dispatch path until M11
+    // Place scopes dispatch via the trigger store (§11A.5), not the registry;
+    // the registry holds `global` system reactors only.
+    if (r.scope !== 'global') continue;
     const actions = r.react({ event, world });
     if (actions) out.push(...actions);
   }
+
+  // Place-scoped triggers (cell/zone/tile) — the §11A.5 dispatch path.
+  out.push(...collectTriggerReactions(world, event));
   return out;
 }

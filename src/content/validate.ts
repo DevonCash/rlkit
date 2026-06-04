@@ -20,6 +20,7 @@ import { ComponentData, Blueprint } from '../core/component';
 import type { Entity } from '../core/entity';
 import type { Level } from '../core/level';
 import type { TimelineState, WorldState } from '../core/world';
+import type { TriggerState } from '../core/trigger';
 
 /** The save-format version this build writes and validates against. */
 export const CURRENT_SCHEMA_VERSION = 1;
@@ -71,6 +72,32 @@ const TimelineStateSchema = z.object({
 /** pure-rand xoroshiro128plus state — an integer array (§16). */
 const RngStateSchema = z.array(z.number());
 
+const ZoneSchema = z.object({
+  id: z.string(),
+  levelId: z.string(),
+  cells: z.array(z.number().int()),
+  data: z.record(z.string(), z.unknown()).optional(),
+});
+
+const TriggerInstanceSchema = z.object({
+  id: z.string(),
+  on: z.string(),
+  scope: z.enum(['cell', 'zone']),
+  levelId: z.string(),
+  cell: z.number().int().optional(),
+  zoneId: z.string().optional(),
+  testId: z.string().optional(),
+  effectId: z.string(),
+  once: z.boolean().optional(),
+  fired: z.boolean().optional(),
+  data: z.record(z.string(), z.unknown()).optional(),
+});
+
+const TriggerStateSchema = z.object({
+  zones: z.array(ZoneSchema),
+  triggers: z.array(TriggerInstanceSchema),
+});
+
 const SerializedWorldSchema = z.object({
   entities: z.map(z.string(), EntitySchema),
   levels: z.map(z.string(), LevelSchema),
@@ -78,6 +105,7 @@ const SerializedWorldSchema = z.object({
   rng: RngStateSchema,
   turn: z.number(),
   nextEntityId: z.number(),
+  triggers: TriggerStateSchema,
 });
 
 export const SaveBlobSchema = z.object({
@@ -100,6 +128,7 @@ export type SchemaMatchesCore = [
   AssertExtends<z.infer<typeof EntitySchema>, Entity>,
   AssertExtends<z.infer<typeof LevelSchema>, Level>,
   AssertExtends<z.infer<typeof TimelineStateSchema>, TimelineState>,
+  AssertExtends<z.infer<typeof TriggerStateSchema>, TriggerState>,
   AssertExtends<z.infer<typeof SerializedWorldSchema>, WorldState>,
 ];
 

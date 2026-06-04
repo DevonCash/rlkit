@@ -21,6 +21,7 @@ import { createTilePalette, type TilePalette } from './tiles';
 import type { FovProvider } from './fov';
 import type { PathProvider } from './path';
 import type { FieldManager } from './fields';
+import { emptyTriggerState, type TriggerState } from './trigger';
 
 /** A one-shot delayed effect scheduled on the world clock (§7.1). */
 export type TimerId = number;
@@ -73,6 +74,8 @@ export interface WorldState {
   turn: number;
   /** Monotonic counter minting deterministic entity ids (serialize-stable). */
   nextEntityId: number;
+  /** Place-scoped reactors + zones (§11A.5); cell/zone instances persist here. */
+  triggers: TriggerState;
 }
 
 export interface Services {
@@ -182,6 +185,7 @@ export function createWorld(opts: CreateWorldOptions): World {
     rng: rng.getState(),
     turn: 0,
     nextEntityId: 0,
+    triggers: emptyTriggerState(),
   };
 
   const queries: QueryIndex = createQueries(state.entities);
@@ -198,6 +202,9 @@ export function createWorld(opts: CreateWorldOptions): World {
     consumableEffects: createRegistry('consumable-effect'),
     fields: createRegistry('field'),
     timerEffects: createRegistry('timer-effect'),
+    triggerEffects: createRegistry('trigger-effect'),
+    triggerTests: createRegistry('trigger-test'),
+    tileTriggers: createRegistry('tile-trigger'),
     ...opts.registries,
   };
 

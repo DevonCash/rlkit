@@ -41,6 +41,8 @@ import { desireAiMixin } from './sim/ai/desire-ai';
 import { diedReactor } from './sim/death';
 import { registerCoreTimerEffects } from './sim/effects';
 import type { TimerEffectRegistry } from './sim/effects';
+import { registerCoreTriggerContent } from './sim/triggers';
+import type { TriggerEffectRegistry, TriggerTestRegistry } from './sim/triggers';
 import { takeTurn } from './sim/driver';
 import { buildFrame } from './render/frame';
 import type { Renderer } from './render/renderer';
@@ -190,6 +192,25 @@ export {
   makeMoveEffect,
 } from './sim/handlers';
 export { runPreReactors, collectReactions } from './sim/reactors';
+
+// --- triggers + zones (§11A.5) ---------------------------------------------
+export type { Zone, TriggerInstance, TriggerScope, TileTrigger, TriggerState } from './core/trigger';
+export { emptyTriggerState } from './core/trigger';
+export {
+  addZone,
+  addTrigger,
+  addTileTrigger,
+  regionToZone,
+  collectTriggerReactions,
+  registerCoreTriggerContent,
+} from './sim/triggers';
+export type {
+  TriggerEffect,
+  TriggerTest,
+  TriggerEffectRegistry,
+  TriggerTestRegistry,
+  TileTriggerRegistry,
+} from './sim/triggers';
 
 // --- map generation + spawn (§8.2, §5.4) -----------------------------------
 export type {
@@ -400,6 +421,11 @@ function registerCoreContent(world: World): void {
   mixins.register('desire-ai', desireAiMixin);
   registerCoreConsumableEffects(world.services.registries.consumableEffects as ConsumableEffectRegistry);
   registerCoreTimerEffects(world.services.registries.timerEffects as TimerEffectRegistry);
+  registerCoreTriggerContent(
+    world.services.registries.triggerTests as TriggerTestRegistry,
+    world.services.registries.triggerEffects as TriggerEffectRegistry,
+    world.services.registries.timerEffects as TimerEffectRegistry,
+  );
   world.services.reactors.register(diedReactor);
 }
 

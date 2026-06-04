@@ -15,7 +15,10 @@ import {
   encodeSave,
   createSession,
   createMessageLog,
+  createTargetingModal,
   buildFrame,
+  viewportOrigin,
+  describeCell,
   defaultConfig,
   createListModal,
   get,
@@ -35,6 +38,8 @@ import {
   type FieldResolver,
   type Camera,
   type FrameCell,
+  type TargetingModal,
+  type Level,
 } from 'rlkit';
 import { registerGameContent } from './content';
 import { makeLevel, spawnPlayer } from './dungeon';
@@ -99,6 +104,7 @@ export const gameConfig: Config = {
     S: 'save',
     L: 'load',
     e: 'open-equipment',
+    x: 'look',
   },
 };
 
@@ -152,6 +158,7 @@ export function createGame(deps: GameDeps): Game {
   let session!: Session;
   let camera!: Camera;
   let log: MessageLog | undefined;
+  let lookModal: TargetingModal | undefined;
   let over = false;
 
   const colors = gameConfig.ui.modal;
@@ -160,6 +167,7 @@ export function createGame(deps: GameDeps): Game {
     world = next.world;
     player = next.player;
     over = false;
+    lookModal = undefined;
     camera = { centerOn: player };
     log?.dispose(); // stop the previous world's subscription
     const resolve: FieldResolver = (field, value) =>
@@ -209,6 +217,35 @@ export function createGame(deps: GameDeps): Game {
     }
   }
 
+  /** The map band's viewport (the canvas minus the status row and log rows). */
+  function mapBand(): Viewport {
+    return { width: deps.viewport.width, height: deps.viewport.height - 1 - LOG_ROWS };
+  }
+
+  function playerLevel(): { level: Level; pos: Position } | undefined {
+    const e = world.state.entities.get(player);
+    const pos = e && get<Position>(e, 'position');
+    const level = pos ? world.state.levels.get(pos.levelId) : undefined;
+    return pos && level ? { level, pos } : undefined;
+  }
+
+  /** Enter look/examine mode: a cursor over the map band, info shown in the log band. */
+  function startLook(): void {
+    const pl = playerLevel();
+    if (!pl) return;
+    const vp = mapBand();
+    const origin = viewportOrigin(world, pl.level, vp, camera);
+    const modal = createTargetingModal({
+      cursor: { x: pl.pos.x - origin.x, y: pl.pos.y - origin.y },
+      viewport: vp,
+      onConfirm: () => { lookModal = undefined; },
+      onCancel: () => { lookModal = undefined; },
+      colors: gameConfig.ui.targeting,
+    });
+    lookModal = modal;
+    session.pushModal(modal);
+  }
+
   function equipmentModal(): void {
     const e = world.state.entities.get(player);
     const equipped = (e?.components.get('equipped') as unknown as { slots: Record<string, string> } | undefined)?.slots ?? {};
@@ -228,6 +265,7 @@ export function createGame(deps: GameDeps): Game {
     descend: (_cmd, ctx) => ctx.submit({ type: 'descend', actor: player }),
     ascend: (_cmd, ctx) => ctx.submit({ type: 'ascend', actor: player }),
     'open-equipment': () => equipmentModal(),
+    look: () => startLook(),
     save: () => {
       deps.storage.set(encodeSave(world));
       log?.add('Game saved.');
@@ -277,13 +315,44 @@ export function createGame(deps: GameDeps): Game {
     for (let i = 0; i < cells.length; i++) cells[i] = { glyph: ' ', fg: '#666', bg: '#000' };
     // map band (top)
     for (let i = 0; i < map.cells.length; i++) cells[i] = map.cells[i]!;
-    // status band
-    writeRow(cells, cols, mapH, statusText(world, player), '#fe9');
-    // log band (bottom) — most recent last
-    const msgs = (log?.messages() ?? []).slice(-LOG_ROWS);
-    for (let i = 0; i < msgs.length; i++) writeRow(cells, cols, mapH + 1 + i, msgs[i]!, gameConfig.ui.log.fg);
+
+    if (lookModal) {
+      // Look mode: cursor on the map, the examined cell's info in the status/log bands.
+      renderLook(cells, cols, mapH);
+    } else {
+      writeRow(cells, cols, mapH, statusText(world, player), '#fe9');
+      const msgs = (log?.messages() ?? []).slice(-LOG_ROWS);
+      for (let i = 0; i < msgs.length; i++) writeRow(cells, cols, mapH + 1 + i, msgs[i]!, gameConfig.ui.log.fg);
+    }
 
     deps.renderer.draw({ width: cols, height: rows, cells, overlays: [] });
+  }
+
+  /** While looking: highlight the cursor cell and print the examined cell's info. */
+  function renderLook(cells: FrameCell[], cols: number, mapH: number): void {
+    writeRow(cells, cols, mapH, 'Look — move cursor · Esc to exit', '#fe9');
+    const cur = lookModal!.cursor();
+    const hi = cells[cur.y * cols + cur.x];
+    if (hi && cur.y < mapH) cells[cur.y * cols + cur.x] = { ...hi, bg: '#640' };
+
+    const pl = playerLevel();
+    const lines: string[] = [];
+    if (pl) {
+      const origin = viewportOrigin(world, pl.level, { width: cols, height: mapH }, camera);
+      const lx = origin.x + cur.x;
+      const ly = origin.y + cur.y;
+      if (lx >= 0 && lx < pl.level.width && ly >= 0 && ly < pl.level.height) {
+        const d = describeCell(world, pl.level.id, ly * pl.level.width + lx);
+        if (!d.visible) lines.push('Out of sight.');
+        else if (d.entities.length === 0) lines.push(`${d.tile.id.replace(/_/g, ' ')} — nothing here.`);
+        else for (const e of d.entities) lines.push(e.description ? `${e.name} — ${e.description}` : e.name);
+      } else {
+        lines.push('Out of sight.');
+      }
+    }
+    for (let i = 0; i < lines.length && i < LOG_ROWS; i++) {
+      writeRow(cells, cols, mapH + 1 + i, lines[i]!.slice(0, cols), gameConfig.ui.log.fg);
+    }
   }
 
   const game: Game = {

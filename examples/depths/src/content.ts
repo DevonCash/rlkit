@@ -66,17 +66,19 @@ function monster(
   fg: string,
   hp: number,
   attack: number,
-  extra: { defense?: number; speed?: number; sight?: number; mixins?: string[] } = {},
+  extra: { defense?: number; speed?: number; sight?: number; mixins?: string[]; desc?: string } = {},
 ): Blueprint {
   const base: Record<string, number> = { 'max-hp': hp, attack };
   if (extra.defense) base.defense = extra.defense;
   if (extra.speed) base.speed = extra.speed;
   if (extra.sight) base['sight-radius'] = extra.sight;
+  const info: Comp = { type: 'info', name: titleCase(id) };
+  if (extra.desc) info.description = extra.desc;
   return {
     id,
     components: [
       { type: 'renderable', glyph, fg, layer: 5 },
-      { type: 'info', name: titleCase(id) },
+      info,
       { type: 'allegiance', faction: 'monster' },
       { type: 'stats', base },
       { type: 'resources', pools: { hp: { current: hp } } },
@@ -130,7 +132,7 @@ const PLAYER: Blueprint = {
   id: 'player',
   components: [
     { type: 'renderable', glyph: '@', fg: '#fff', layer: 10 },
-    { type: 'info', name: 'Player' },
+    { type: 'info', name: 'Player', description: 'A delver seeking the Forgemaster in the depths.' },
     { type: 'allegiance', faction: 'player' },
     { type: 'stats', base: { 'max-hp': 30, attack: 4, defense: 1, speed: 10, 'sight-radius': 8 } },
     { type: 'resources', pools: { hp: { current: 30 } } },
@@ -143,24 +145,31 @@ const PLAYER: Blueprint = {
 const BLUEPRINTS: Blueprint[] = [
   PLAYER,
   // caves
-  monster('rat', 'r', '#a86', 4, 2),
-  monster('bat', 'w', '#86a', 5, 2, { speed: 16 }),
-  monster('spider', 's', '#6a6', 6, 3, { mixins: ['venomous'] }),
-  monster('goblin', 'g', '#6c6', 8, 3),
+  monster('rat', 'r', '#a86', 4, 2, { desc: 'A mangy cave rat, bold in numbers.' }),
+  monster('bat', 'w', '#86a', 5, 2, { speed: 16, desc: 'A leather-winged bat that darts and weaves.' }),
+  monster('spider', 's', '#6a6', 6, 3, { mixins: ['venomous'], desc: 'A cave spider; its bite leaves venom.' }),
+  monster('goblin', 'g', '#6c6', 8, 3, { desc: 'A scrappy goblin scavenger.' }),
   // crypt
-  monster('skeleton', 'k', '#ddd', 10, 4, { defense: 1 }),
-  monster('zombie', 'Z', '#7a7', 16, 4, { speed: 6 }),
-  monster('ghoul', 'G', '#9b6', 12, 5),
-  monster('wraith', 'W', '#aac', 10, 6),
+  monster('skeleton', 'k', '#ddd', 10, 4, { defense: 1, desc: 'Animated bones that clatter as they advance.' }),
+  monster('zombie', 'Z', '#7a7', 16, 4, { speed: 6, desc: 'A shambling corpse — slow, but hard to put down.' }),
+  monster('ghoul', 'G', '#9b6', 12, 5, { desc: 'A ravenous ghoul that feeds on the dead.' }),
+  monster('wraith', 'W', '#aac', 10, 6, { desc: 'A cold, half-seen wraith that drains the living.' }),
   // sewers
-  monster('slime', 'j', '#6cc', 14, 3),
-  monster('plague_zombie', 'P', '#9c6', 18, 5, { speed: 6, mixins: ['venomous'] }),
-  monster('croc', 'C', '#496', 20, 6, { defense: 2 }),
+  monster('slime', 'j', '#6cc', 14, 3, { desc: 'A quivering slime that oozes through the muck.' }),
+  monster('plague_zombie', 'P', '#9c6', 18, 5, { speed: 6, mixins: ['venomous'], desc: 'A pestilent corpse wreathed in toxic fumes.' }),
+  monster('croc', 'C', '#496', 20, 6, { defense: 2, desc: 'A sewer crocodile with armored hide.' }),
   // foundry
-  monster('fire_beetle', 'a', '#f73', 12, 6),
-  monster('hellhound', 'd', '#f55', 16, 7, { speed: 16 }),
-  monster('iron_golem', 'I', '#99a', 30, 7, { defense: 4, speed: 6 }),
-  { ...monster('forgemaster', 'M', '#f33', 60, 10, { defense: 3, sight: 12 }), tags: ['boss'] },
+  monster('fire_beetle', 'a', '#f73', 12, 6, { desc: 'A beetle that glows with forge-heat.' }),
+  monster('hellhound', 'd', '#f55', 16, 7, { speed: 16, desc: 'A fast hound wreathed in embers.' }),
+  monster('iron_golem', 'I', '#99a', 30, 7, { defense: 4, speed: 6, desc: 'A hulking construct of riveted iron.' }),
+  {
+    ...monster('forgemaster', 'M', '#f33', 60, 10, {
+      defense: 3,
+      sight: 12,
+      desc: 'The Forgemaster — master of the foundry and your final foe.',
+    }),
+    tags: ['boss'],
+  },
   // weapons / armor / rings
   weapon('dagger', 'Dagger', '#ccc', 2),
   weapon('short_sword', 'Short Sword', '#cdd', 4),

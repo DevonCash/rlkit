@@ -77,6 +77,8 @@ export interface WorldState {
   nextEntityId: number;
   /** Place-scoped reactors + zones (§11A.5); cell/zone instances persist here. */
   triggers: TriggerState;
+  /** Ids of the opt-in modules this world was composed with (§6.4 manifest). */
+  modules: string[];
 }
 
 export interface Services {
@@ -216,6 +218,7 @@ export function createWorld(opts: CreateWorldOptions): World {
     turn: 0,
     nextEntityId: 0,
     triggers: emptyTriggerState(),
+    modules: [],
   };
 
   const queries: QueryIndex = createQueries(state.entities);

@@ -17,6 +17,7 @@ import {
   type MigrationTable,
 } from './content/validate';
 import { cellOf } from './core/coords';
+import { composeModules, assertModulesPresent, type Module } from './core/module';
 import { get } from './core/entity';
 import type { Position } from './core/component';
 import { defaultConfig } from './config/defaults';
@@ -95,6 +96,10 @@ export { pick, type WeightedTable } from './core/weighted';
 // --- registries / components / entities (§5–6) -----------------------------
 export { createRegistry } from './core/registry';
 export type { Registry, Registries } from './core/registry';
+
+// --- modules (§6.4) --------------------------------------------------------
+export type { Module } from './core/module';
+export { orderModules, composeModules, assertModulesPresent } from './core/module';
 export {
   createComponentRegistry,
   registerCoreComponents,
@@ -402,6 +407,8 @@ export interface WorldOptions {
   /** Pathfinding provider; defaults to the rotJS Dijkstra adapter. */
   path?: PathProvider;
   registries?: Registries;
+  /** Opt-in feature modules, composed (in dependency order) after core content. */
+  modules?: Module[];
 }
 
 /**
@@ -456,6 +463,7 @@ export function createWorld(opts: WorldOptions): World {
   };
   const world = assembleWorld(core);
   registerCoreContent(world);
+  composeModules(world, opts.modules ?? []); // after core, so a module may override a built-in
   return world;
 }
 
@@ -489,6 +497,11 @@ export interface LoadOptions {
   fov?: FovProvider;
   path?: PathProvider;
   registries?: Registries;
+  /**
+   * Opt-in modules to re-apply on load. Must include every module the save was
+   * written with (its manifest, `state.modules`) — a missing one throws.
+   */
+  modules?: Module[];
 }
 
 /**
@@ -519,6 +532,11 @@ export function loadWorld(raw: string | unknown, opts: LoadOptions = {}): World 
   };
   const world = assembleWorld(core);
   registerCoreContent(world);
+
+  // Re-apply the opt-in modules the save was written with (validated against the
+  // manifest) so their components/handlers/effects resolve over the restored state.
+  assertModulesPresent(state.modules ?? [], opts.modules ?? []);
+  composeModules(world, opts.modules ?? []);
 
   // Resume the RNG at the saved position so draws continue identically.
   world.services.rng.setState(state.rng);

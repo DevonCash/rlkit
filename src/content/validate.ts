@@ -106,6 +106,8 @@ const SerializedWorldSchema = z.object({
   turn: z.number(),
   nextEntityId: z.number(),
   triggers: TriggerStateSchema,
+  // Default keeps pre-manifest saves parseable (they load as "no modules").
+  modules: z.array(z.string()).default([]),
 });
 
 export const SaveBlobSchema = z.object({

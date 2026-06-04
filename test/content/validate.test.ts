@@ -18,6 +18,7 @@ function sampleWorld(): WorldState {
     turn: 0,
     nextEntityId: 1,
     triggers: { zones: [], triggers: [] },
+    modules: [],
   };
 }
 

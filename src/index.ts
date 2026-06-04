@@ -288,6 +288,8 @@ export {
   VISIBLE_LAYER,
   EXPLORED_LAYER,
 } from './sim/visibility';
+export { describeCell } from './sim/look';
+export type { CellDescription, CellEntityInfo } from './sim/look';
 export { decideAction } from './sim/ai/decide';
 export { aiHunterMixin, aiWandererMixin } from './sim/ai/simple';
 export { canSee, pathToward, nearestHostile } from './sim/ai/helpers';
@@ -316,6 +318,7 @@ export { autoexploreStep } from './sim/ai/autoexplore';
 export { buildFrame } from './render/frame';
 export type { RenderFrame, FrameCell, Overlay } from './render/frame';
 export type { Camera, Viewport } from './render/camera';
+export { viewportOrigin, cameraLevel } from './render/camera';
 export type { Renderer } from './render/renderer';
 export { AsciiRenderer } from './render/ascii-renderer';
 export { CanvasRenderer } from './render/canvas-renderer';

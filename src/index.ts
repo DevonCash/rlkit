@@ -101,6 +101,7 @@ export {
   parseComponent,
   Position,
   Renderable,
+  Info,
   Blueprint,
 } from './core/component';
 export type { Component, ComponentDef, ComponentRegistry } from './core/component';
@@ -325,7 +326,7 @@ export { registerCoreTimerEffects } from './sim/effects';
 export type { TimerEffectRegistry } from './sim/effects';
 export { runReactions } from './sim/action';
 export { createMessageLog } from './ui/log';
-export type { MessageLog } from './ui/log';
+export type { MessageLog, MessageLogOptions, FieldResolver } from './ui/log';
 
 // --- input + UI stack (§14, §15) -------------------------------------------
 export type { Command, InputSource, Keymap } from './input/command';

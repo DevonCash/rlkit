@@ -63,6 +63,14 @@ export const Renderable = z.object({
 });
 export type Renderable = z.infer<typeof Renderable>;
 
+/** Human-facing display metadata: a name and optional flavor/description text. */
+export const Info = z.object({
+  type: z.literal('info'),
+  name: z.string(),
+  description: z.string().optional(),
+});
+export type Info = z.infer<typeof Info>;
+
 export const Stats = z.object({
   type: z.literal('stats'),
   base: z.record(z.string(), z.number()),
@@ -168,6 +176,7 @@ export type DesireAIData = z.infer<typeof DesireAIData>;
 export function registerCoreComponents(reg: ComponentRegistry): void {
   reg.register('position', { type: 'position', schema: Position });
   reg.register('renderable', { type: 'renderable', schema: Renderable });
+  reg.register('info', { type: 'info', schema: Info });
   reg.register('stats', { type: 'stats', schema: Stats });
   reg.register('resources', { type: 'resources', schema: Resources });
   reg.register('statuses', { type: 'statuses', schema: Statuses });

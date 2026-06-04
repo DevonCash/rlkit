@@ -22,6 +22,22 @@ describe('message log (§12)', () => {
     expect(log.messages()).toEqual(['rat → {missing}']);
   });
 
+  it('resolves {field} values through the resolve hook (e.g. id → name)', () => {
+    const bus = createEventBus();
+    const names: Record<string, string> = { goblin: 'Goblin', hero: 'Player' };
+    const log = createMessageLog(
+      bus,
+      { died: '{entity} is slain by {source}.' },
+      { resolve: (field, value) => (field === 'entity' || field === 'source' ? names[String(value)] : undefined) },
+    );
+    bus.emit({ type: 'died', entity: 'goblin', source: 'hero' });
+    // entity + source resolved to names; a missing name falls back to the raw id.
+    expect(log.messages()).toEqual(['Goblin is slain by Player.']);
+
+    bus.emit({ type: 'died', entity: 'rat', source: 'hero' });
+    expect(log.messages().at(-1)).toBe('rat is slain by Player.'); // 'rat' has no name → raw id
+  });
+
   it('caps the ring buffer and supports direct add + dispose', () => {
     const bus = createEventBus();
     const log = createMessageLog(bus, { moved: '{entity}' }, 3);

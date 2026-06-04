@@ -12,6 +12,8 @@ import {
   createSession,
   defaultConfig,
   createListModal,
+  get,
+  deriveStats,
   type Config,
   type World,
   type Renderer,
@@ -19,10 +21,36 @@ import {
   type Session,
   type CommandTable,
   type Stance,
+  type Hud,
+  type Overlay,
+  type Resources,
+  type Position,
 } from 'rlkit';
 import { registerGameContent } from './content';
 import { makeLevel, spawnPlayer } from './dungeon';
-import { MAX_DEPTH } from './biomes';
+import { MAX_DEPTH, biomeForDepth } from './biomes';
+
+/** A status line showing depth, biome, and HP along the viewport's bottom row. */
+function gameHud(): Hud {
+  return {
+    render(world, player, viewport): Overlay[] {
+      const e = world.state.entities.get(player);
+      if (!e) return [];
+      const pos = get<Position>(e, 'position');
+      const level = pos ? world.state.levels.get(pos.levelId) : undefined;
+      const depth = Number(level?.metadata.depth ?? 0);
+      const stats = deriveStats(e, world);
+      const hp = get<Resources>(e, 'resources')?.pools.hp?.current ?? 0;
+      const text = `Depth ${depth} · ${biomeForDepth(depth).name}    HP ${hp}/${stats['max-hp'] ?? 0}`;
+      const y = viewport.height - 1;
+      const overlays: Overlay[] = [];
+      for (let i = 0; i < text.length && i < viewport.width; i++) {
+        overlays.push({ cell: y * viewport.width + i, glyph: text.charAt(i), fg: '#fe9' });
+      }
+      return overlays;
+    },
+  };
+}
 
 export const SAVE_KEY = 'depths-save';
 const FINAL_LEVEL = `depth-${MAX_DEPTH}`;
@@ -112,6 +140,7 @@ export function createGame(deps: GameDeps): Game {
       player,
       ...(deps.renderer ? { renderer: deps.renderer } : {}),
       viewport: deps.viewport,
+      hud: gameHud(),
       commands,
     });
   }

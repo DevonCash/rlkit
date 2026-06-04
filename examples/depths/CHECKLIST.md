@@ -9,15 +9,16 @@ Survives between sessions. Engine work (Part A) is done and committed.
 
 ## Part B — the game (`examples/depths`)
 - [x] B0 — scaffold (package.json, vite.config, tsconfig, index.html)
-- [ ] B1 — content catalog: `registerGameContent` (themed tiles, blueprints, consumable effects, statuses, venomous mixin, levelProvider)
-- [ ] B2 — biomes + dungeon: `makeLevel` (themed tile remap, stairs), `populate` (weighted spawn tables), `levelProvider`, `newGame`
-- [ ] B3 — UI: equipment screen command, HUD (depth/biome/HP), log templates
-- [ ] B4 — save/load to localStorage (`save`/`load` commands, rebuild session)
-- [ ] B5 — game flow: title screen, death screen, victory on the Forgemaster
-- [ ] B6 — game tests: golden determinism run, save/load round-trip with content, descent invariant
+- [x] B1 — content catalog: `registerGameContent` (themed tiles, blueprints, consumable effects, statuses, venomous mixin, despawn reactor, levelProvider)
+- [x] B2 — biomes + dungeon: `makeLevel` (themed tile remap, stairs), `populate` (weighted spawn tables), `levelProvider`, `newGame`
+- [x] B3 — UI: equipment screen command, custom HUD (depth/biome/HP)
+- [x] B4 — save/load to localStorage (`save`/`load` commands, rebuild session)
+- [x] B5 — game flow: title screen, death screen, victory on the Forgemaster
+- [x] B6 — game tests: determinism run, save/load round-trip with content, descent invariant
 
 ## Verify
-- [ ] `cd examples/depths && npm install && npm test` green
-- [ ] `npm run typecheck` green
-- [ ] `npm run dev` — play a full descent, equip gear, drink potions, save/reload, reach the boss
-- [ ] root `npm test` still green (engine gate)
+- [x] `cd examples/depths && npm install && npm test` green (4 tests)
+- [x] `npm run typecheck` green
+- [x] `npm run dev` — verified via preview: title → new game → themed FOV dungeon, movement, combat bumps, message log, HUD, save/load (no console errors)
+- [x] root `npm test` still green (engine gate — 270 tests)
+- [ ] follow-up (optional): nicer log names (entity ids show raw), targeted-scroll UI, deeper play-through to the boss

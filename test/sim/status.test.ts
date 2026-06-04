@@ -97,3 +97,33 @@ describe('status — poison drains hp each tick; expiry fires onExpire (§22.8 [
     expect(hpOf(e)).toBe(18);
   });
 });
+
+describe('resource regen ticks on the per-actor clock (§9.2)', () => {
+  it('a resource def with a `regen` delta heals each tick, clamped at max', () => {
+    const w = world();
+    (w.services.registries.resources as Registry<ResourceDef>).override('hp', { id: 'hp', max: 'max-hp', regen: 3 });
+    const e = createEntity('e', [
+      { type: 'stats', base: { 'max-hp': 20 } },
+      { type: 'resources', pools: { hp: { current: 10 } } },
+    ]);
+    w.state.entities.set('e', e);
+
+    tickActor(w, 'e');
+    expect(hpOf(e)).toBe(13); // +3 regen, no statuses component needed
+    tickActor(w, 'e');
+    tickActor(w, 'e');
+    tickActor(w, 'e'); // 13 → 16 → 19 → 22 clamped to 20
+    expect(hpOf(e)).toBe(20);
+  });
+
+  it('no regen field → no change (the default hp def is inert)', () => {
+    const w = world();
+    const e = createEntity('e', [
+      { type: 'stats', base: { 'max-hp': 20 } },
+      { type: 'resources', pools: { hp: { current: 10 } } },
+    ]);
+    w.state.entities.set('e', e);
+    tickActor(w, 'e');
+    expect(hpOf(e)).toBe(10);
+  });
+});

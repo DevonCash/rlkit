@@ -14,12 +14,16 @@ import type { World } from '../core/world';
 import type { Effect } from '../core/action';
 import type { Registry } from '../core/registry';
 import { deriveStat } from './stats';
+import { pushActiveStatus } from './status';
 
 export interface Threshold {
   at?: number;
   below?: number;
   emit?: string;
+  /** Status (registry id) to apply when this bound is crossed (§9.2). */
   status?: string;
+  /** Duration for the applied `status` (defaults to 1 tick). */
+  duration?: number;
 }
 
 export interface ResourceDef {
@@ -81,7 +85,10 @@ export function changeResource(
   for (const t of def?.thresholds ?? []) {
     if (crossedDown(t, before, after)) {
       if (t.emit) events.push({ type: t.emit, entity: entityId });
-      // `status` application is wired by the status system (M4 group 5).
+      if (t.status) {
+        pushActiveStatus(e, t.status, t.duration ?? 1);
+        events.push({ type: 'status:applied', entity: entityId, effectId: t.status });
+      }
     }
   }
   return events;

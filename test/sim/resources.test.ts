@@ -34,6 +34,31 @@ function combatant(w: W, id: string, hp: number, maxHp = 20): Entity {
 function poolOf(e: Entity, id: string): number {
   return get<Resources>(e, 'resources')!.pools[id]!.current;
 }
+function statusesOf(e: Entity): { effectId: string; duration: number }[] {
+  return (get(e, 'statuses') as { active?: { effectId: string; duration: number }[] } | undefined)?.active ?? [];
+}
+
+describe('threshold-triggered statuses (§9.2)', () => {
+  it('crossing a bound applies the named status (with its duration) and emits status:applied', () => {
+    const w = world();
+    defineHp(w, { thresholds: [{ at: 0, emit: 'died' }, { below: 10, status: 'bloodied', duration: 5 }] });
+    const e = combatant(w, 'hero', 20);
+
+    // Drop hp from 20 → 6, crossing below 10.
+    const events = changeResource(w, 'hero', 'hp', -14, 'damage');
+    expect(events).toContainEqual({ type: 'status:applied', entity: 'hero', effectId: 'bloodied' });
+    expect(statusesOf(e)).toContainEqual({ effectId: 'bloodied', duration: 5, stacks: 1 });
+  });
+
+  it('does not re-apply when the bound is not crossed', () => {
+    const w = world();
+    defineHp(w, { thresholds: [{ below: 10, status: 'bloodied', duration: 5 }] });
+    const e = combatant(w, 'hero', 8); // already below the bound
+    const events = changeResource(w, 'hero', 'hp', -1, 'damage'); // 8 → 7, no fresh crossing
+    expect(events.some((ev) => ev.type === 'status:applied')).toBe(false);
+    expect(statusesOf(e)).toEqual([]);
+  });
+});
 
 describe('changeResource — clamp & conservation (§22.7)', () => {
   test.prop([fc.integer({ min: 0, max: 20 }), fc.array(fc.integer({ min: -30, max: 30 }), { maxLength: 20 })])(

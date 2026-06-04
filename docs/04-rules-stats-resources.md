@@ -43,7 +43,7 @@ interface ResourceDef {            // registry entry (content)
   regen?: number;                  // per-turn delta (config); ticked like status/scent fields
   thresholds?: Threshold[];
 }
-interface Threshold { at?: number; below?: number; emit?: string; status?: string; }
+interface Threshold { at?: number; below?: number; emit?: string; status?: string; duration?: number; }
 ```
 
 Every change goes through one operation, applied as an `Effect` (§7.2), that clamps to `[0, max]` and **emits events for anything lost or any bound crossed** — the single chokepoint that makes resources reactable:

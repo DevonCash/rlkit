@@ -56,6 +56,24 @@ export function registerCoreStatuses(reg: StatusDefRegistry, hasteSpeed: number)
   reg.register('haste', { id: 'haste', modifiers: [{ stat: 'speed', phase: 'add', amount: hasteSpeed }] });
 }
 
+/**
+ * Apply (or refresh) a status on an entity in place — the shared status-push
+ * used by both the `applyStatus` effect and threshold-triggered statuses (§9.2).
+ * Refreshing takes the longer remaining duration and adds the extra stacks.
+ */
+export function pushActiveStatus(e: Entity, effectId: string, duration: number, stacks = 1): void {
+  const comp = get<StatusesComponent>(e, 'statuses');
+  const active = comp ? comp.active : [];
+  const existing = active.find((a) => a.effectId === effectId);
+  if (existing) {
+    existing.duration = Math.max(existing.duration, duration);
+    existing.stacks = (existing.stacks ?? 1) + (stacks - 1);
+  } else {
+    active.push({ effectId, duration, stacks });
+  }
+  if (!comp) set(e, { type: 'statuses', active });
+}
+
 /** An effect that applies (or refreshes) a status on an entity. */
 export function applyStatusEffect(
   entityId: string,
@@ -67,17 +85,7 @@ export function applyStatusEffect(
     kind: `status:${effectId}`,
     validate: (world) => world.state.entities.has(entityId),
     apply(world) {
-      const e = world.state.entities.get(entityId)!;
-      const comp = get<StatusesComponent>(e, 'statuses');
-      const active = comp ? comp.active : [];
-      const existing = active.find((a) => a.effectId === effectId);
-      if (existing) {
-        existing.duration = Math.max(existing.duration, duration);
-        existing.stacks = (existing.stacks ?? 1) + (stacks - 1);
-      } else {
-        active.push({ effectId, duration, stacks });
-      }
-      if (!comp) set(e, { type: 'statuses', active });
+      pushActiveStatus(world.state.entities.get(entityId)!, effectId, duration, stacks);
       return [{ type: 'status:applied', entity: entityId, effectId }];
     },
   };
@@ -101,11 +109,25 @@ function resourceCappedBy(world: World, statName: string): string | undefined {
  */
 export function tickActor(world: World, entityId: string): GameEvent[] {
   const e: Entity | undefined = world.state.entities.get(entityId);
-  const comp = e && get<StatusesComponent>(e, 'statuses');
-  if (!e || !comp || comp.active.length === 0) return [];
+  if (!e) return [];
+  const events: GameEvent[] = [];
+
+  // 1. Per-turn resource regen (§9.2): any resource def carrying a `regen` delta,
+  //    for each pool the entity holds. Independent of statuses.
+  const resComp = get<{ type: 'resources'; pools: Record<string, { current: number }> }>(e, 'resources');
+  if (resComp) {
+    const resReg = world.services.registries.resources as Registry<ResourceDef> | undefined;
+    for (const resourceId of Object.keys(resComp.pools)) {
+      const regen = resReg?.tryGet(resourceId)?.regen;
+      if (regen) events.push(...changeResource(world, entityId, resourceId, regen, 'regen'));
+    }
+  }
+
+  // 2. Statuses: per-tick deltas, duration decay, and expiry.
+  const comp = get<StatusesComponent>(e, 'statuses');
+  if (!comp || comp.active.length === 0) return events;
 
   const reg = statusReg(world);
-  const events: GameEvent[] = [];
   const survivors: ActiveStatus[] = [];
 
   for (const a of comp.active) {

@@ -19,6 +19,9 @@ import {
   buildFrame,
   viewportOrigin,
   describeCell,
+  tickRealtime,
+  commandToAction,
+  isUIIntent,
   defaultConfig,
   createListModal,
   get,
@@ -32,6 +35,7 @@ import {
   displayName,
   type Module,
   type Config,
+  type Action,
   type World,
   type Renderer,
   type Viewport,
@@ -151,6 +155,12 @@ export interface Game {
   hasSave(): boolean;
   /** Begin: show the title screen (Continue offered when a save exists). */
   start(): void;
+  /** Whether the real-time clock should advance now (real-time mode, no modal, not over). */
+  realtimeActive(): boolean;
+  /** Advance the world by `ticks` world-ticks (real-time loop) and render. */
+  tick(ticks: number): void;
+  /** Clear the buffered movement (e.g. on key-up). */
+  clearBuffer(): void;
   /** Test/inspection access. */
   readonly world: World;
   readonly player: string;
@@ -188,6 +198,8 @@ export function createGame(deps: GameDeps): Game {
   let lookModal: TargetingModal | undefined;
   let throwModal: TargetingModal | undefined;
   let over = false;
+  let realtime = false;
+  let pendingAction: Action | undefined; // buffered movement consumed by tick()
 
   const colors = gameConfig.ui.modal;
 
@@ -218,6 +230,7 @@ export function createGame(deps: GameDeps): Game {
     over = false;
     lookModal = undefined;
     throwModal = undefined;
+    pendingAction = undefined;
     camera = { centerOn: player };
     log?.dispose(); // stop the previous world's subscription
     const resolve: FieldResolver = (field, value) =>
@@ -369,13 +382,19 @@ export function createGame(deps: GameDeps): Game {
   };
 
   function titleModal(): void {
-    const items = [{ label: 'New Game', value: 'new' }];
+    const items = [
+      { label: 'New Game (Turn-based)', value: 'new' },
+      { label: 'New Game (Real-time)', value: 'rt' },
+    ];
     if (deps.storage.get() !== null) items.unshift({ label: 'Continue', value: 'continue' });
     session.pushModal(
       createListModal<string>({
         title: 'D E P T H S',
         items,
-        onSelect: (v) => bind((v === 'continue' && tryLoad()) || newGame(deps.seed)),
+        onSelect: (v) => {
+          realtime = v === 'rt';
+          bind((v === 'continue' && tryLoad()) || newGame(deps.seed));
+        },
         colors,
       }),
     );
@@ -454,6 +473,16 @@ export function createGame(deps: GameDeps): Game {
     },
     hasSave: () => deps.storage.get() !== null,
     onCommand(cmd) {
+      // Real-time, no modal open: continuous movement/wait just BUFFERS the next
+      // action (consumed by the tick loop); everything else (modals, descend,
+      // throw, save…) flows through the session as usual.
+      if (realtime && !over && session.stack.top() === undefined) {
+        const a = commandToAction(cmd, { player });
+        if (a !== undefined && !isUIIntent(a)) {
+          pendingAction = a;
+          return;
+        }
+      }
       session.onCommand(cmd);
       checkGameOver();
       // `session` may have been swapped (New Game / Load) mid-command; render the
@@ -461,6 +490,17 @@ export function createGame(deps: GameDeps): Game {
       renderGame();
     },
     render: () => renderGame(),
+    realtimeActive: () => realtime && !over && session.stack.top() === undefined,
+    tick(ticks) {
+      if (!(realtime && !over && session.stack.top() === undefined)) return;
+      const res = tickRealtime(world, { player, ticks, ...(pendingAction ? { action: pendingAction } : {}) });
+      if (res.playerActed) pendingAction = undefined;
+      checkGameOver();
+      renderGame();
+    },
+    clearBuffer() {
+      pendingAction = undefined;
+    },
     start() {
       bind(newGame(deps.seed)); // bind() renders the world
       titleModal();

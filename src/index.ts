@@ -107,6 +107,8 @@ export type { ProgressionOptions } from './modules/progression';
 export { identificationModule, displayName, Identity } from './modules/identification';
 export { rangedModule, aiRangedMixin } from './modules/ranged';
 export type { RangedOptions } from './modules/ranged';
+export { hungerModule } from './modules/hunger';
+export type { HungerOptions } from './modules/hunger';
 export {
   createComponentRegistry,
   registerCoreComponents,

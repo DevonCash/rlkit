@@ -113,6 +113,8 @@ export const Equipment = z.object({
   type: z.literal('equipment'),
   slot: z.string(),
   bonuses: z.record(z.string(), z.number()), // Partial<StatBlock>, additive
+  /** Sticky once worn until uncursed (used by the identification module). */
+  cursed: z.boolean().optional(),
 });
 export type Equipment = z.infer<typeof Equipment>;
 

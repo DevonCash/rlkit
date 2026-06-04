@@ -104,6 +104,7 @@ export { combatModule, lastAttackerOf } from './modules/combat';
 export type { CombatOptions } from './modules/combat';
 export { progressionModule, Experience } from './modules/progression';
 export type { ProgressionOptions } from './modules/progression';
+export { identificationModule, displayName, Identity } from './modules/identification';
 export {
   createComponentRegistry,
   registerCoreComponents,

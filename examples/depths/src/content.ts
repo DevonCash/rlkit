@@ -273,6 +273,10 @@ export function registerGameContent(world: World): void {
       const id = ((ctx as EventReactionCtx).event as { entity?: string }).entity;
       const e = id !== undefined ? world.state.entities.get(id) : undefined;
       if (!e || id === undefined) return;
+      // Keep the player's corpse: the game's render/camera still reference the
+      // player entity, and the controller shows the death screen instead.
+      const alleg = e.components.get('allegiance') as { faction?: string } | undefined;
+      if (alleg?.faction === 'player') return;
       world.services.queries.unindex(e);
       world.state.entities.delete(id);
     },

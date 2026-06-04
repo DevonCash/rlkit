@@ -32,6 +32,15 @@ export interface TurnResult {
 /** Process one timeline entry. */
 export function takeTurn(world: World, opts: TakeTurnOptions): TurnResult {
   const timeline = world.services.timeline;
+
+  // The driver is player-centric: if the controlled player can no longer take a
+  // turn (died → removed from the timeline by the death reactor), the run is
+  // over. Report `idle` instead of spinning through AI-only turns forever — the
+  // `step`/`run` loops only stop on a non-`acted` result.
+  if (!world.state.timeline.actors.some((a) => a.id === opts.player)) {
+    return { kind: 'idle' };
+  }
+
   let entry: Entry;
   try {
     entry = timeline.next();

@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { perform, get, set, cellOf, encodeSave, type World } from 'rlkit';
 import type { Position } from 'rlkit';
-import { newGame, loadGame, findPlayer } from '../src/game';
+import { newGame, loadGame, findPlayer, createGame, type Storage } from '../src/game';
+
+function memStore(): Storage {
+  let v: string | null = null;
+  return { get: () => v, set: (s) => { v = s; }, clear: () => { v = null; } };
+}
 
 /** A deterministic, structural digest of the parts of world state that persist. */
 function digest(world: World): string {
@@ -87,6 +92,21 @@ describe('Depths — descent', () => {
       return p?.levelId === 'depth-1';
     });
     expect(onDepth1.length).toBeGreaterThan(0);
+  });
+});
+
+describe('Depths — game over', () => {
+  it('handles player death without hanging the turn loop', () => {
+    const g = createGame({ viewport: { width: 40, height: 20 }, storage: memStore(), seed: 5 });
+    g.start();
+    g.onCommand({ type: 'confirm' }); // select "New Game" on the title screen
+    expect(g.world.state.timeline.actors.some((a) => a.id === g.player)).toBe(true);
+
+    // Simulate death (what the diedReactor does): pull the player from the timeline.
+    g.world.services.timeline.remove(g.player);
+    // Pre-fix this spun forever on the remaining monsters; it must now return.
+    g.onCommand({ type: 'wait' });
+    expect(g.world.state.timeline.actors.some((a) => a.id === g.player)).toBe(false);
   });
 });
 

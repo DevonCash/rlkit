@@ -92,4 +92,21 @@ describe('driver (§6) — turns run end to end', () => {
     const r = step(w, { player: 'hero', actionProvider: () => undefined });
     expect(r.kind).toBe('awaiting-input');
   });
+
+  it('idles (does not spin forever) once the player leaves the timeline — e.g. on death', () => {
+    const { w, lvl } = setup();
+    place(w, lvl, 'hero', 3, 2, [
+      { type: 'allegiance', faction: 'player' },
+      { type: 'resources', pools: { hp: { current: 1 } } },
+    ], [], 100);
+    // A wandering monster that would otherwise keep taking turns indefinitely.
+    place(w, lvl, 'mon', 6, 2, [{ type: 'allegiance', faction: 'monster' }], ['aiWanderer'], 100);
+
+    // Simulate death: the diedReactor removes the dead actor from the timeline.
+    w.services.timeline.remove('hero');
+
+    // Without the player-presence guard this would loop forever on the monster.
+    const r = step(w, { player: 'hero', actionProvider: () => undefined });
+    expect(r.kind).toBe('idle');
+  });
 });

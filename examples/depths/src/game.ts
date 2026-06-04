@@ -166,9 +166,15 @@ export function createGame(deps: GameDeps): Game {
     );
   }
 
+  // The player is dead once the death reactor has pulled it from the timeline
+  // (its corpse entity is intentionally left in the world for rendering).
+  function playerDead(): boolean {
+    return !world.state.timeline.actors.some((a) => a.id === player);
+  }
+
   function checkGameOver(): void {
     if (over) return;
-    if (!world.state.entities.has(player)) {
+    if (playerDead()) {
       over = true;
       endModal('You died.  ✝');
     } else if (playerLevelId() === FINAL_LEVEL && !bossAlive()) {
@@ -240,6 +246,11 @@ export function createGame(deps: GameDeps): Game {
     onCommand(cmd) {
       session.onCommand(cmd);
       checkGameOver();
+      // A New Game / Load selection swaps `session` mid-command (inside the old
+      // session's modal handler), and the old session renders itself last —
+      // leaving a stale frame. Render the *current* session to settle on the
+      // live world.
+      session.render();
     },
     render: () => session.render(),
     start() {

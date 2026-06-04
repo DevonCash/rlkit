@@ -102,6 +102,8 @@ export type { Module } from './core/module';
 export { orderModules, composeModules, assertModulesPresent } from './core/module';
 export { combatModule, lastAttackerOf } from './modules/combat';
 export type { CombatOptions } from './modules/combat';
+export { progressionModule, Experience } from './modules/progression';
+export type { ProgressionOptions } from './modules/progression';
 export {
   createComponentRegistry,
   registerCoreComponents,

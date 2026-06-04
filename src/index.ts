@@ -109,6 +109,7 @@ export { rangedModule, aiRangedMixin } from './modules/ranged';
 export type { RangedOptions } from './modules/ranged';
 export { hungerModule } from './modules/hunger';
 export type { HungerOptions } from './modules/hunger';
+export { doorsModule } from './modules/doors';
 export {
   createComponentRegistry,
   registerCoreComponents,

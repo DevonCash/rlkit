@@ -64,14 +64,20 @@ export function collectTriggerReactions(world: World, event: GameEvent): Action[
   const levelId = (event as { levelId?: unknown }).levelId;
   if (typeof cell !== 'number' || typeof levelId !== 'string') return [];
 
+  // Hot path: movement emits place-events constantly. A world with no triggers
+  // and no tile rules must pay nothing beyond the type checks above.
+  const ts = world.state.triggers;
+  const tiles = tileReg(world);
+  const hasTileRules = !!tiles && tiles.ids().length > 0;
+  if (ts.triggers.length === 0 && !hasTileRules) return [];
+
   const effects = effectsReg(world);
   if (!effects) return [];
   const out: Action[] = [];
 
   // 1. Tile-type rules (stateless content).
-  const tiles = tileReg(world);
   const level = world.state.levels.get(levelId);
-  if (tiles && level) {
+  if (hasTileRules && tiles && level) {
     const tileId = world.services.tiles.byIndex(tileIndexAt(level, cell)).id;
     for (const rule of tiles.tryGet(tileId) ?? []) {
       if (rule.on !== event.type) continue;
@@ -84,7 +90,6 @@ export function collectTriggerReactions(world: World, event: GameEvent): Action[
   }
 
   // 2. Placed cell/zone instances (stateful: `once`/`fired`).
-  const ts = world.state.triggers;
   for (const inst of ts.triggers) {
     if (inst.fired) continue;
     if (inst.on !== event.type || inst.levelId !== levelId) continue;
@@ -99,10 +104,25 @@ export function collectTriggerReactions(world: World, event: GameEvent): Action[
   return out;
 }
 
+/**
+ * Membership index per zone, keyed by the `cells` array identity (stable for a
+ * loaded/created zone). Lazily built so a large room is an O(1) `has` per check
+ * instead of an O(cells) linear scan, and GC'd with the zone via the WeakMap.
+ */
+const zoneCellSets = new WeakMap<readonly Cell[], Set<Cell>>();
+function zoneContains(zone: Zone, cell: Cell): boolean {
+  let set = zoneCellSets.get(zone.cells);
+  if (!set) {
+    set = new Set(zone.cells);
+    zoneCellSets.set(zone.cells, set);
+  }
+  return set.has(cell);
+}
+
 function scopeMatches(zones: readonly Zone[], inst: TriggerInstance, cell: Cell, levelId: string): boolean {
   if (inst.scope === 'cell') return inst.cell === cell;
   const zone = zones.find((z) => z.id === inst.zoneId && z.levelId === levelId);
-  return !!zone && zone.cells.includes(cell);
+  return !!zone && zoneContains(zone, cell);
 }
 
 // --- authoring API ----------------------------------------------------------
@@ -117,7 +137,12 @@ export function addTrigger(world: World, instance: TriggerInstance): void {
   world.state.triggers.triggers.push(instance);
 }
 
-/** Attach a stateless rule to a tile TYPE (every tile of that id). */
+/**
+ * Attach a stateless rule to a tile TYPE (every tile of that id). NOTE: tile
+ * rules live in a registry (content), NOT in `WorldState` — they are NOT
+ * serialized. Register them at world assembly (as core content does) so they
+ * survive load; a rule added only at runtime is lost on save/load.
+ */
 export function addTileTrigger(world: World, tileTypeId: string, rule: TileTrigger): void {
   const reg = tileReg(world);
   if (!reg) return;
@@ -146,7 +171,7 @@ export function regionToZone(
 
 // --- core content (proof) ---------------------------------------------------
 
-/** A target's hp is read for `cause` blame; helper for scripted-damage effects. */
+/** Build a self-sourced `damage` action against `target` (scripted-damage helper). */
 function damageOccupant(target: string, amount: number, cause: string): Action {
   return { type: 'damage', actor: target, target, amount, cause };
 }
@@ -194,7 +219,9 @@ export function registerCoreTriggerContent(
   timerEffects.register('trap:detonate', (world, payload) => {
     const { cell, levelId, amount } = payload as { cell: number; levelId: string; amount: number };
     const events: GameEvent[] = [];
-    for (const id of world.services.queries.at(cell, levelId)) {
+    // Snapshot occupants: `at()` returns the live spatial Set, and resolving
+    // damage could (via a future death/knockback path) mutate it mid-iteration.
+    for (const id of [...world.services.queries.at(cell, levelId)]) {
       const out = resolve(world, damageOccupant(id, amount, 'trap'));
       if (out.status !== 'rejected') events.push(...out.events);
     }

@@ -53,26 +53,31 @@ Tests are a **record of intended behavior**, not a snapshot of whatever the code
 Tags below: **[P]** property test · **[E]** example test · **[I]** integration test across systems.
 
 ### 22.1 Core — entity / component / registry / query
+
 - [E] component get/set/has; container components hold multiple instances by inner id.
 - [E] `Registry<T>` returns registered defs; unknown id throws a clear error.
 - [P] schema-first validation: any value not matching a component's Zod schema is rejected at the boundary; valid values pass and infer the right type.
 - [P] query layer: `with(A,B)` returns exactly the entities having both; results update after component add/remove; `at(cell)` reflects movement; `byTag` matches the tag index. Iteration order is stable.
 
 ### 22.2 RNG
+
 - [P] same seed → identical sequence; `getState`/`setState` round-trips mid-stream; `fork()` streams are independent and don't perturb the parent.
 - [P] `int(min,max)` stays in range; distribution is approximately uniform over many draws.
 
 ### 22.3 Coords & geometry
+
 - [P] `cellOf`/`pointOf` round-trip; neighbor offsets never wrap across row edges.
 - [E] `line` endpoints correct; `hasLoS` is blocked by an opaque tile and clear otherwise.
 - [P] `cellsIn` for every shape stays within bounds and, when configured wall-blocking, excludes occluded cells.
 
 ### 22.4 Timeline (turns + delayed effects)
+
 - [P] over N world ticks an actor with double `speed` acts ~twice as often; no actor is ever starved.
 - [E] a scheduled effect fires exactly at its `fireAt` on the world clock; `cancel` prevents it; tie ordering is deterministic.
 - [P] two clocks: a hasted, poisoned actor takes more poison ticks per *world* turn than a normal-speed one (status ticks on the per-actor clock); a world-clock field ticks once per world turn regardless of who acted.
 
 ### 22.5 Action / effect / event pipeline
+
 - [E] `reject` → no time passes, no effects, world unchanged; `fizzle` → cost spent and queued effects applied; `done` → effects + events.
 - [P] **validate-all-then-apply atomicity**: in a batch of effects where one fails `validate`, *none* apply (world identical to before). The headline correctness property.
 - [E] upstream code sees a `ReadonlyWorld` — only effects mutate (type-level, plus a runtime guard test).
@@ -80,11 +85,13 @@ Tags below: **[P]** property test · **[E]** example test · **[I]** integration
 - [E] `ts-pattern` dispatch hits a catch-all for an unknown content action/event type rather than throwing.
 
 ### 22.6 Reactors & reaction loop
+
 - [E] a pre-phase reactor reduces a pending damage effect (armor); a post-phase reactor enqueues a follow-up action.
 - [P] FIFO drain order is deterministic; the depth guard breaks a self-feeding cascade (fire→oil→fire) at the configured limit and logs.
 - [E] scope dispatch: an entity reactor fires only for its entity; a zone reactor only inside the zone; a global reactor always.
 
 ### 22.7 Stats & resources
+
 - [P] modifier result is independent of gather order: shuffling modifiers yields the same value (phase order base→add→mul→clamp holds).
 - [E] derived stat reflects equipment + status; removing the source updates it; clamps respected.
 - [P] resource `current` is always within `[0,max]` for any delta sequence; every unit of input is accounted for as applied-or-lost.
@@ -92,20 +99,24 @@ Tags below: **[P]** property test · **[E]** example test · **[I]** integration
 - [E] an action with a resource cost is rejected when the pool is insufficient.
 
 ### 22.8 Combat & status
+
 - [P] HP never goes negative; computed damage stays within the configured formula's bounds; resistances reduce it.
 - [E] reaching 0 HP fires `died`; overkill also emits `resource:underflow`.
 - [I] `haste` raises `speed`, which measurably changes the actor's cadence on the timeline; poison drains HP each per-actor tick; expiry fires `onExpire`.
 
 ### 22.9 Items / inventory / equipment
+
 - [E] pickup/drop moves the item entity between floor and inventory (same entity, two locations); capacity/weight enforced.
 - [E] equip applies its `modifyStats`; unequip removes it; `useItem` consumes a charge and resolves its effect.
 
 ### 22.10 Map generation
+
 - [P] **every seed yields a fully reachable level**: stairs and all decorated spawns are reachable from the entrance (the headline mapgen property). Generators emit only registered tile ids and stay within bounds.
 - [E] BSP rooms don't overlap and are connected; prefab/vault stamping respects anchors.
 - [P] same seed → identical map.
 
 ### 22.11 Fields & desire AI
+
 - [P] goal scan distances match an independent BFS ground truth; walls and unreachable cells are `Infinity`; descending from any cell strictly decreases distance to a goal.
 - [E] flee map: a cornered monster steps toward the door, not into the corner (the Brogue behavior).
 - [E] scent is wall-aware — it does not bleed through an opaque wall; the trail decays over time.
@@ -114,17 +125,20 @@ Tags below: **[P]** property test · **[E]** example test · **[I]** integration
 - [E] `DesireAI` steps to the lowest weighted-sum neighbor; ties break deterministically via RNG; goal sets are drawn from faction stance.
 
 ### 22.12 Factions, triggers, tags, utilities
+
 - [E] `stanceBetween`: matrix lookup, with a per-entity override winning over it.
 - [E] a trigger fires on the matching event + scope, gated by `testId`, and respects `once`; `entity:entered`/`exited` emit on movement.
 - [P] `roll("2d6+3")` stays within `[5,15]` and is deterministic per seed; weighted `pick` approximates its configured distribution.
 
 ### 22.13 Save/load & the determinism harness
+
 - [P] **round-trip**: `load(save(state))` deep-equals the original state across randomly generated worlds (the headline save property). The blob contains no functions; services rebuild from registries.
 - [E] `devalue` preserves `Map`s and typed-array layers; pending timeline effects and RNG state survive, so a loaded game continues identically.
 - [E] schema migration upgrades an old-version blob; a malformed blob is rejected by validation.
 - [E/snapshot] **golden run**: a scripted sequence of inputs under a fixed seed produces a recorded event stream; this single snapshot guards end-to-end determinism and is updated deliberately when intended behavior changes.
 
 ### 22.14 Presentation (lighter; jsdom / canvas mock)
+
 - [E] `buildFrame` applies FOV visibility (visible / explored-dim / hidden) and correct layer order.
 - [E] input maps key → command → action; an open modal routes input to the top of the UI stack.
 

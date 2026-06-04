@@ -55,6 +55,11 @@ const THEMED_TILES: TileDef[] = [
 // --- blueprint builders ----------------------------------------------------
 type Comp = { type: string; [k: string]: unknown };
 
+/** "plague_zombie" → "Plague Zombie" — a display name derived from the id. */
+function titleCase(id: string): string {
+  return id.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
 function monster(
   id: string,
   glyph: string,
@@ -71,6 +76,7 @@ function monster(
     id,
     components: [
       { type: 'renderable', glyph, fg, layer: 5 },
+      { type: 'info', name: titleCase(id) },
       { type: 'allegiance', faction: 'monster' },
       { type: 'stats', base },
       { type: 'resources', pools: { hp: { current: hp } } },
@@ -124,6 +130,7 @@ const PLAYER: Blueprint = {
   id: 'player',
   components: [
     { type: 'renderable', glyph: '@', fg: '#fff', layer: 10 },
+    { type: 'info', name: 'Player' },
     { type: 'allegiance', faction: 'player' },
     { type: 'stats', base: { 'max-hp': 30, attack: 4, defense: 1, speed: 10, 'sight-radius': 8 } },
     { type: 'resources', pools: { hp: { current: 30 } } },

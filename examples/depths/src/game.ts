@@ -1,15 +1,21 @@
 /**
- * game — the game controller: world lifecycle, custom commands, and flow.
+ * game — the game controller: world lifecycle, custom commands, flow, and the
+ * stacked presentation (map · status · log).
  *
  * Owns the world + session and swaps them on new-game / load. Headless: the
  * renderer and a small `Storage` port are injected, so the whole controller is
- * driven in node by the test suite and in the browser by `main.ts`.
+ * driven in node by the test suite and in the browser by `main.ts`. The game
+ * owns rendering (the session is created without a renderer) so it can lay the
+ * map, a status line, and the message log out as three stacked bands instead of
+ * overlaying the log on the play area.
  */
 import {
   createWorld,
   loadWorld,
   encodeSave,
   createSession,
+  createMessageLog,
+  buildFrame,
   defaultConfig,
   createListModal,
   get,
@@ -21,39 +27,44 @@ import {
   type Session,
   type CommandTable,
   type Stance,
-  type Hud,
-  type Overlay,
   type Resources,
   type Position,
+  type Info,
+  type Item,
+  type MessageLog,
+  type FieldResolver,
+  type Camera,
+  type FrameCell,
 } from 'rlkit';
 import { registerGameContent } from './content';
 import { makeLevel, spawnPlayer } from './dungeon';
 import { MAX_DEPTH, biomeForDepth } from './biomes';
 
-/** A status line showing depth, biome, and HP along the viewport's bottom row. */
-function gameHud(): Hud {
-  return {
-    render(world, player, viewport): Overlay[] {
-      const e = world.state.entities.get(player);
-      if (!e) return [];
-      const pos = get<Position>(e, 'position');
-      const level = pos ? world.state.levels.get(pos.levelId) : undefined;
-      const depth = Number(level?.metadata.depth ?? 0);
-      const stats = deriveStats(e, world);
-      const hp = get<Resources>(e, 'resources')?.pools.hp?.current ?? 0;
-      const text = `Depth ${depth} · ${biomeForDepth(depth).name}    HP ${hp}/${stats['max-hp'] ?? 0}`;
-      const y = viewport.height - 1;
-      const overlays: Overlay[] = [];
-      for (let i = 0; i < text.length && i < viewport.width; i++) {
-        overlays.push({ cell: y * viewport.width + i, glyph: text.charAt(i), fg: '#fe9' });
-      }
-      return overlays;
-    },
-  };
-}
-
 export const SAVE_KEY = 'depths-save';
 const FINAL_LEVEL = `depth-${MAX_DEPTH}`;
+/** Rows reserved at the bottom of the canvas for the message log. */
+const LOG_ROWS = 6;
+/** Event payload fields that name an entity (resolved id → display name). */
+const ENTITY_FIELDS = new Set(['entity', 'target', 'source', 'actor', 'item']);
+
+/** Display name of an entity: its `info.name`, else an item's name, else a noun. */
+function nameOf(world: World, id: string): string {
+  const e = world.state.entities.get(id);
+  if (!e) return 'something';
+  return get<Info>(e, 'info')?.name ?? get<Item>(e, 'item')?.name ?? 'something';
+}
+
+/** A status line: depth · biome · HP. */
+function statusText(world: World, player: string): string {
+  const e = world.state.entities.get(player);
+  if (!e) return '';
+  const pos = get<Position>(e, 'position');
+  const level = pos ? world.state.levels.get(pos.levelId) : undefined;
+  const depth = Number(level?.metadata.depth ?? 0);
+  const hp = get<Resources>(e, 'resources')?.pools.hp?.current ?? 0;
+  const max = deriveStats(e, world)['max-hp'] ?? 0;
+  return `Depth ${depth} · ${biomeForDepth(depth).name}    HP ${hp}/${max}`;
+}
 
 /** Minimal persistence port (localStorage in the browser, a Map in tests). */
 export interface Storage {
@@ -62,12 +73,24 @@ export interface Storage {
   clear(): void;
 }
 
-/** The faction matrix + extended keymap the game runs with. */
+/** The faction matrix, narration templates, and extended keymap the game runs with. */
 export const gameConfig: Config = {
   ...defaultConfig,
   factions: {
     default: 'neutral' as Stance,
     matrix: { monster: { player: 'hostile' }, player: { monster: 'hostile' } },
+  },
+  // Curated, name-friendly narration. `moved`/`bumped` are intentionally dropped
+  // (they spam every off-screen monster step); the resolver turns ids into names.
+  log: {
+    templates: {
+      died: '{entity} is slain.',
+      'item:picked': '{entity} picks up {item}.',
+      'item:equipped': '{entity} wields {item}.',
+      'item:unequipped': '{entity} removes {item}.',
+      'item:used': '{entity} uses an item.',
+      'entity:changed-level': '{entity} takes the stairs.',
+    },
   },
   keymap: {
     ...defaultConfig.keymap,
@@ -127,6 +150,8 @@ export function createGame(deps: GameDeps): Game {
   let world!: World;
   let player!: string;
   let session!: Session;
+  let camera!: Camera;
+  let log: MessageLog | undefined;
   let over = false;
 
   const colors = gameConfig.ui.modal;
@@ -135,19 +160,20 @@ export function createGame(deps: GameDeps): Game {
     world = next.world;
     player = next.player;
     over = false;
-    session = createSession({
-      world,
-      player,
-      ...(deps.renderer ? { renderer: deps.renderer } : {}),
-      viewport: deps.viewport,
-      hud: gameHud(),
-      commands,
-    });
+    camera = { centerOn: player };
+    log?.dispose(); // stop the previous world's subscription
+    const resolve: FieldResolver = (field, value) =>
+      ENTITY_FIELDS.has(field) && typeof value === 'string' ? nameOf(world, value) : undefined;
+    log = createMessageLog(world.services.bus, gameConfig.log.templates, { resolve });
+    // No renderer is passed: the game owns rendering (renderGame) so it can lay
+    // out the map/status/log as bands rather than overlay the log on the map.
+    session = createSession({ world, player, viewport: deps.viewport, log, commands });
+    renderGame();
   }
 
   function playerLevelId(): string | undefined {
     const e = world.state.entities.get(player);
-    const pos = e?.components.get('position') as { levelId: string } | undefined;
+    const pos = e?.components.get('position') as unknown as { levelId: string } | undefined;
     return pos?.levelId;
   }
 
@@ -185,12 +211,8 @@ export function createGame(deps: GameDeps): Game {
 
   function equipmentModal(): void {
     const e = world.state.entities.get(player);
-    const equipped = (e?.components.get('equipped') as { slots: Record<string, string> } | undefined)?.slots ?? {};
-    const items = Object.entries(equipped).map(([slot, id]) => {
-      const it = world.state.entities.get(id);
-      const name = (it?.components.get('item') as { name?: string } | undefined)?.name ?? id;
-      return { label: `${slot}: ${name}`, value: slot };
-    });
+    const equipped = (e?.components.get('equipped') as unknown as { slots: Record<string, string> } | undefined)?.slots ?? {};
+    const items = Object.entries(equipped).map(([slot, id]) => ({ label: `${slot}: ${nameOf(world, id)}`, value: slot }));
     session.pushModal(
       createListModal<string>({
         title: items.length ? 'Equipment (select to remove)' : 'Equipment',
@@ -208,6 +230,7 @@ export function createGame(deps: GameDeps): Game {
     'open-equipment': () => equipmentModal(),
     save: () => {
       deps.storage.set(encodeSave(world));
+      log?.add('Game saved.');
     },
     load: () => {
       const raw = deps.storage.get();
@@ -235,6 +258,34 @@ export function createGame(deps: GameDeps): Game {
     );
   }
 
+  /** Draw the current frame: a full-screen modal, or the map/status/log bands. */
+  function renderGame(): void {
+    if (!deps.renderer) return;
+    const cols = deps.viewport.width;
+    const rows = deps.viewport.height;
+
+    // A full-screen modal (title / inventory / equipment / death) replaces all.
+    const modalFrame = session.stack.top()?.render({ width: cols, height: rows });
+    if (modalFrame && !Array.isArray(modalFrame)) {
+      deps.renderer.draw(modalFrame);
+      return;
+    }
+
+    const mapH = rows - 1 - LOG_ROWS;
+    const map = buildFrame(world, { width: cols, height: mapH }, camera);
+    const cells: FrameCell[] = new Array(cols * rows);
+    for (let i = 0; i < cells.length; i++) cells[i] = { glyph: ' ', fg: '#666', bg: '#000' };
+    // map band (top)
+    for (let i = 0; i < map.cells.length; i++) cells[i] = map.cells[i]!;
+    // status band
+    writeRow(cells, cols, mapH, statusText(world, player), '#fe9');
+    // log band (bottom) — most recent last
+    const msgs = (log?.messages() ?? []).slice(-LOG_ROWS);
+    for (let i = 0; i < msgs.length; i++) writeRow(cells, cols, mapH + 1 + i, msgs[i]!, gameConfig.ui.log.fg);
+
+    deps.renderer.draw({ width: cols, height: rows, cells, overlays: [] });
+  }
+
   const game: Game = {
     get world() {
       return world;
@@ -246,20 +297,28 @@ export function createGame(deps: GameDeps): Game {
     onCommand(cmd) {
       session.onCommand(cmd);
       checkGameOver();
-      // A New Game / Load selection swaps `session` mid-command (inside the old
-      // session's modal handler), and the old session renders itself last —
-      // leaving a stale frame. Render the *current* session to settle on the
-      // live world.
-      session.render();
+      // `session` may have been swapped (New Game / Load) mid-command; render the
+      // current one so we never leave a stale frame.
+      renderGame();
     },
-    render: () => session.render(),
+    render: () => renderGame(),
     start() {
-      // Build an initial world so a session/renderer exists, then overlay title.
-      bind(newGame(deps.seed));
+      bind(newGame(deps.seed)); // bind() renders the world
       titleModal();
-      session.render();
+      renderGame();
     },
   };
 
   return game;
+}
+
+/** Write a string into a row of a flat cells array (clipped to width). */
+function writeRow(cells: FrameCell[], cols: number, y: number, text: string, fg: string): void {
+  for (let i = 0; i < text.length && i < cols; i++) {
+    const cell = cells[y * cols + i];
+    if (cell) {
+      cell.glyph = text.charAt(i);
+      cell.fg = fg;
+    }
+  }
 }

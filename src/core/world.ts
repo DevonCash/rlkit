@@ -9,6 +9,7 @@
  * with the runtime guard arriving alongside the effect pipeline in M2).
  */
 import type { Config } from '../config/defaults';
+import type { Cell } from './coords';
 import type { Entity, EntityId } from './entity';
 import type { Level } from './level';
 import type { RNG, RNGState } from './rng';
@@ -101,7 +102,36 @@ export interface Services {
   rng: RNG;
   config: Config;
   timeline: Timeline;
+  /**
+   * Optional game hook to build/link the level on the far side of unlinked
+   * stairs (§8.2). Set by the game after `createWorld`/`loadWorld`; the engine's
+   * descend/ascend handlers consult it. Not serialized.
+   */
+  levelProvider?: LevelProvider;
 }
+
+/** One end of a level link: a destination level + cell. */
+export interface LevelLink {
+  levelId: string;
+  cell: Cell;
+}
+
+/** A request to resolve (build + link) the level on the other side of stairs. */
+export interface LevelRequest {
+  /** Depth of the level being entered (source depth ± 1), if the source knows it. */
+  depth: number;
+  dir: 'up' | 'down';
+  /** Where the actor is leaving from, so the provider can link the return stairs. */
+  from: LevelLink;
+}
+
+/**
+ * Game-supplied hook to lazily build the level on the far side of unlinked
+ * stairs (§8.2). A *service* — reconstructed on load like `fov`/`path`, never
+ * serialized — so games re-attach it after `loadWorld`. The engine's
+ * descend/ascend handlers call it when a stairs' `to` is unset, then transition.
+ */
+export type LevelProvider = (world: World, req: LevelRequest) => LevelLink | undefined;
 
 export interface World {
   state: WorldState;

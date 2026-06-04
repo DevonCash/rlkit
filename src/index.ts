@@ -44,6 +44,7 @@ import type { TimerEffectRegistry } from './sim/effects';
 import { registerCoreTriggerContent } from './sim/triggers';
 import type { TriggerEffectRegistry, TriggerTestRegistry } from './sim/triggers';
 import { takeTurn } from './sim/driver';
+import { descendHandler, ascendHandler } from './sim/transition';
 import { buildFrame } from './render/frame';
 import type { Renderer } from './render/renderer';
 import type { Camera, Viewport } from './render/camera';
@@ -235,6 +236,11 @@ export type { BuildLevelParams, BuiltLevel } from './mapgen/build-level';
 export { spawn } from './sim/spawn';
 export type { SpawnOptions } from './sim/spawn';
 
+// --- level transitions: descend / ascend (§8.2) ----------------------------
+export { Stairs } from './core/component';
+export { transitionEffect, descendHandler, ascendHandler } from './sim/transition';
+export type { LevelLink, LevelRequest, LevelProvider } from './core/world';
+
 // --- stats / resources / combat / status (§9) ------------------------------
 export type { StatBlock, StatModifier } from './core/stats';
 export { Stats, Resources, Statuses } from './core/component';
@@ -405,7 +411,10 @@ export interface WorldOptions {
  * names its save referenced. Content can override/extend any entry by id after.
  */
 function registerCoreContent(world: World): void {
-  registerCoreHandlers(world.services.registries.handlers as Registry<ActionHandler>);
+  const handlers = world.services.registries.handlers as Registry<ActionHandler>;
+  registerCoreHandlers(handlers);
+  handlers.register('descend', descendHandler);
+  handlers.register('ascend', ascendHandler);
   registerCoreComponents(world.services.registries.components as ComponentRegistry);
   registerCoreTiles(world.services.tiles, world.services.config.tiles);
   registerCoreStats(world.services.registries.stats as Registry<StatDef>, world.services.config.defaultSpeed);

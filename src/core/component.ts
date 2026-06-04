@@ -130,6 +130,18 @@ export const Equipped = z.object({
 });
 export type Equipped = z.infer<typeof Equipped>;
 
+// --- Stairs / level links (§8.2) ------------------------------------------
+// A stairs entity links two levels. `to` is the destination (the other end's
+// level + cell); when absent, the engine's descend/ascend handler asks the
+// world's `levelProvider` to build and link the destination on first use.
+
+export const Stairs = z.object({
+  type: z.literal('stairs'),
+  dir: z.enum(['up', 'down']),
+  to: z.object({ levelId: z.string(), cell: z.number().int() }).optional(),
+});
+export type Stairs = z.infer<typeof Stairs>;
+
 // --- Factions (§11A.2) ----------------------------------------------------
 
 export const Stance = z.enum(['hostile', 'neutral', 'allied']);
@@ -166,6 +178,7 @@ export function registerCoreComponents(reg: ComponentRegistry): void {
   reg.register('equipped', { type: 'equipped', schema: Equipped });
   reg.register('allegiance', { type: 'allegiance', schema: Allegiance });
   reg.register('desire-ai', { type: 'desire-ai', schema: DesireAIData });
+  reg.register('stairs', { type: 'stairs', schema: Stairs });
 }
 
 // --- Blueprints (content as data, §5.4) ----------------------------------

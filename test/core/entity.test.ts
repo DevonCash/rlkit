@@ -41,19 +41,11 @@ describe('entity accessors', () => {
 
   it('a container component holds multiple inner instances by inner id', () => {
     const e = createEntity('hero');
-    // The component's data is itself a keyed map of inner instances.
-    set(e, {
-      type: 'statuses',
-      byId: {
-        poison: { turns: 3 },
-        haste: { turns: 5 },
-      },
-    });
-    const statuses = get(e, 'statuses') as {
-      type: 'statuses';
-      byId: Record<string, { turns: number }>;
-    };
-    expect(Object.keys(statuses.byId)).toEqual(['poison', 'haste']);
-    expect(statuses.byId.haste!.turns).toBe(5);
+    // `resources` is a real container component (§9): its data is a map of pools
+    // keyed by inner id — matching the registered `Resources` schema.
+    set(e, { type: 'resources', pools: { hp: { current: 10 }, mana: { current: 5 } } });
+    const res = get(e, 'resources') as { type: 'resources'; pools: Record<string, { current: number }> };
+    expect(Object.keys(res.pools)).toEqual(['hp', 'mana']);
+    expect(res.pools.mana!.current).toBe(5);
   });
 });

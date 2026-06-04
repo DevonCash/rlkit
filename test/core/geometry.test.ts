@@ -85,6 +85,47 @@ describe('cellsIn (§22.3)', () => {
     ]);
   });
 
+  it('cone covers cells ahead within the half-angle and range, none behind', () => {
+    const width = 20;
+    const height = 20;
+    const origin = { x: 10, y: 10 };
+    const cells = cellsIn(origin, { kind: 'cone', dir: { x: 1, y: 0 }, angle: Math.PI / 2, range: 4 }, { width, height });
+    expect(cells).toContainEqual({ x: 12, y: 10 }); // straight ahead
+    expect(cells).not.toContainEqual({ x: 8, y: 10 }); // directly behind
+    expect(cells).not.toContainEqual(origin); // origin excluded
+    for (const c of cells) {
+      expect(c.x).toBeGreaterThanOrEqual(0);
+      expect(c.x).toBeLessThan(width);
+      expect(Math.hypot(c.x - origin.x, c.y - origin.y)).toBeLessThanOrEqual(4 + 1e-9);
+      expect(c.x).toBeGreaterThanOrEqual(origin.x); // all within the +x half
+    }
+  });
+
+  test.prop([fc.integer({ min: 1, max: 6 })])('ring is exactly the cells at rounded distance r', (r) => {
+    const width = 24;
+    const height = 24;
+    const origin = { x: 12, y: 12 };
+    const cells = cellsIn(origin, { kind: 'ring', radius: r }, { width, height });
+    expect(cells).not.toContainEqual(origin);
+    for (const c of cells) {
+      expect(c.x).toBeGreaterThanOrEqual(0);
+      expect(c.x).toBeLessThan(width);
+      expect(Math.round(Math.hypot(c.x - origin.x, c.y - origin.y))).toBe(r);
+    }
+    expect(cells).toContainEqual({ x: origin.x + r, y: origin.y }); // the cardinal point
+  });
+
+  it('cone excludes cells occluded by a wall when blocks is configured', () => {
+    const width = 20;
+    const height = 3;
+    const origin = { x: 10, y: 1 };
+    const blocked = (cell: number) => cell === cellOf({ x: 11, y: 1 }, width);
+    const open = cellsIn(origin, { kind: 'cone', dir: { x: 1, y: 0 }, angle: Math.PI / 2, range: 3 }, { width, height });
+    const occluded = cellsIn(origin, { kind: 'cone', dir: { x: 1, y: 0 }, angle: Math.PI / 2, range: 3 }, { width, height, blocks: blocked });
+    expect(open).toContainEqual({ x: 13, y: 1 });
+    expect(occluded).not.toContainEqual({ x: 13, y: 1 }); // behind the wall along +x
+  });
+
   it('excludes cells occluded by a wall when blocks is configured', () => {
     const width = 20;
     const height = 3;

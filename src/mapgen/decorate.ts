@@ -88,10 +88,12 @@ export function decorate(map: GeneratedMap, opts: DecorateOptions): GeneratedMap
     all = walkableCells(tiles, isWalkableIndex);
   }
 
-  // Place stairs on the reachable cell farthest from the entrance.
+  // Place stairs on the reachable cell farthest from the entrance — but never
+  // ON the entrance (only falls back to it on a degenerate 1-cell level).
   let stairs = entrance;
   let far = -1;
   for (const c of reachable) {
+    if (c === entrance) continue;
     const d = manhattan(c, entrance, width);
     if (d > far || (d === far && c < stairs)) {
       far = d;

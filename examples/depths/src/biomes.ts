@@ -35,7 +35,7 @@ const CAVES: Biome = {
   monsters: 8,
   loot: 4,
   enemies: tbl(['rat', 5], ['bat', 4], ['spider', 3], ['goblin', 3]),
-  items: tbl(['potion_heal', 5], ['dagger', 3], ['leather', 3], ['scroll_blink', 2], ['short_sword', 1]),
+  items: tbl(['potion_heal', 5], ['ration', 4], ['dagger', 3], ['leather', 3], ['scroll_identify', 2], ['scroll_blink', 2], ['short_sword', 1]),
 };
 
 const CRYPT: Biome = {
@@ -45,8 +45,8 @@ const CRYPT: Biome = {
   wallTile: 'crypt_wall',
   monsters: 9,
   loot: 4,
-  enemies: tbl(['skeleton', 5], ['zombie', 4], ['ghoul', 3], ['wraith', 2]),
-  items: tbl(['potion_heal', 4], ['antidote', 3], ['short_sword', 3], ['chain', 3], ['scroll_haste', 2], ['mace', 1]),
+  enemies: tbl(['skeleton', 5], ['zombie', 4], ['ghoul', 3], ['cultist', 3], ['wraith', 2]),
+  items: tbl(['potion_heal', 4], ['ration', 3], ['antidote', 3], ['short_sword', 3], ['chain', 3], ['scroll_haste', 2], ['scroll_uncurse', 2], ['cursed_ring', 1], ['mace', 1]),
 };
 
 const SEWERS: Biome = {
@@ -57,7 +57,7 @@ const SEWERS: Biome = {
   monsters: 10,
   loot: 5,
   enemies: tbl(['slime', 5], ['plague_zombie', 4], ['croc', 2]),
-  items: tbl(['potion_heal', 3], ['potion_greater', 2], ['antidote', 3], ['mace', 2], ['chain', 2], ['scroll_fire', 2], ['ring_vigor', 1]),
+  items: tbl(['potion_heal', 3], ['potion_greater', 2], ['ration', 3], ['antidote', 3], ['mace', 2], ['chain', 2], ['scroll_fire', 2], ['scroll_identify', 2], ['ring_vigor', 1]),
 };
 
 const FOUNDRY: Biome = {
@@ -68,7 +68,7 @@ const FOUNDRY: Biome = {
   monsters: 10,
   loot: 5,
   enemies: tbl(['fire_beetle', 5], ['hellhound', 4], ['iron_golem', 3]),
-  items: tbl(['potion_greater', 3], ['scroll_fire', 2], ['warhammer', 2], ['plate', 2], ['ring_vigor', 2], ['scroll_haste', 1]),
+  items: tbl(['potion_greater', 3], ['ration', 3], ['scroll_fire', 2], ['warhammer', 2], ['plate', 2], ['ring_vigor', 2], ['scroll_uncurse', 1], ['scroll_haste', 1]),
 };
 
 /** Depth → biome. Two levels per biome; the last level adds the boss (dungeon.ts). */

@@ -28,6 +28,7 @@ import {
   type Mixin,
   type Reactor,
   type EventReactionCtx,
+  type Module,
 } from 'rlkit';
 import { levelProvider } from './dungeon';
 
@@ -66,14 +67,20 @@ function monster(
   fg: string,
   hp: number,
   attack: number,
-  extra: { defense?: number; speed?: number; sight?: number; mixins?: string[]; desc?: string } = {},
+  extra: { defense?: number; speed?: number; sight?: number; mixins?: string[]; desc?: string; ranged?: number } = {},
 ): Blueprint {
-  const base: Record<string, number> = { 'max-hp': hp, attack };
+  const base: Record<string, number> = { 'max-hp': hp, attack, bounty: hp + attack * 2 };
   if (extra.defense) base.defense = extra.defense;
   if (extra.speed) base.speed = extra.speed;
   if (extra.sight) base['sight-radius'] = extra.sight;
+  if (extra.ranged) {
+    base['ranged-attack'] = extra.ranged;
+    base.range = 5;
+  }
   const info: Comp = { type: 'info', name: titleCase(id) };
   if (extra.desc) info.description = extra.desc;
+  // A ranged attacker prefers shooting; aiRanged falls back to closing in.
+  const ai = extra.ranged ? ['aiRanged', 'aiWanderer'] : ['aiHunter', 'aiWanderer'];
   return {
     id,
     components: [
@@ -83,7 +90,7 @@ function monster(
       { type: 'stats', base },
       { type: 'resources', pools: { hp: { current: hp } } },
     ],
-    mixins: ['aiHunter', 'aiWanderer', ...(extra.mixins ?? [])],
+    mixins: [...ai, ...(extra.mixins ?? [])],
   };
 }
 
@@ -117,15 +124,15 @@ function ringItem(id: string, name: string, fg: string, bonuses: Record<string, 
     ],
   };
 }
-function consumable(id: string, name: string, glyph: string, fg: string, effect: string): Blueprint {
-  return {
-    id,
-    components: [
-      { type: 'renderable', glyph, fg, layer: 3 },
-      { type: 'item', name, stackable: false, qty: 1 },
-      { type: 'consumable', uses: 1, effect },
-    ],
-  };
+function consumable(id: string, name: string, glyph: string, fg: string, effect: string, appearance?: string): Blueprint {
+  const components: Comp[] = [
+    { type: 'renderable', glyph, fg, layer: 3 },
+    { type: 'item', name, stackable: false, qty: 1 },
+    { type: 'consumable', uses: 1, effect },
+  ];
+  // Unidentified consumables read as their appearance until used/identified.
+  if (appearance) components.push({ type: 'identity', identified: false, appearance });
+  return { id, components };
 }
 
 const PLAYER: Blueprint = {
@@ -134,8 +141,9 @@ const PLAYER: Blueprint = {
     { type: 'renderable', glyph: '@', fg: '#fff', layer: 10 },
     { type: 'info', name: 'Player', description: 'A delver seeking the Forgemaster in the depths.' },
     { type: 'allegiance', faction: 'player' },
-    { type: 'stats', base: { 'max-hp': 30, attack: 4, defense: 1, speed: 10, 'sight-radius': 8 } },
-    { type: 'resources', pools: { hp: { current: 30 } } },
+    { type: 'stats', base: { 'max-hp': 30, attack: 4, defense: 1, speed: 10, 'sight-radius': 8, range: 5, 'ranged-attack': 4 } },
+    { type: 'resources', pools: { hp: { current: 30 }, satiation: { current: 100 } } },
+    { type: 'experience', xp: 0, level: 1 },
     { type: 'inventory', items: [] },
     { type: 'equipped', slots: {} },
   ],
@@ -154,6 +162,7 @@ const BLUEPRINTS: Blueprint[] = [
   monster('zombie', 'Z', '#7a7', 16, 4, { speed: 6, desc: 'A shambling corpse — slow, but hard to put down.' }),
   monster('ghoul', 'G', '#9b6', 12, 5, { desc: 'A ravenous ghoul that feeds on the dead.' }),
   monster('wraith', 'W', '#aac', 10, 6, { desc: 'A cold, half-seen wraith that drains the living.' }),
+  monster('cultist', 'y', '#c7f', 9, 2, { ranged: 4, desc: 'A robed cultist hurling crackling bolts from afar.' }),
   // sewers
   monster('slime', 'j', '#6cc', 14, 3, { desc: 'A quivering slime that oozes through the muck.' }),
   monster('plague_zombie', 'P', '#9c6', 18, 5, { speed: 6, mixins: ['venomous'], desc: 'A pestilent corpse wreathed in toxic fumes.' }),
@@ -179,13 +188,26 @@ const BLUEPRINTS: Blueprint[] = [
   armor('chain', 'Chainmail', '#bbc', 3),
   armor('plate', 'Plate Armor', '#ccd', 5),
   ringItem('ring_vigor', 'Ring of Vigor', '#fd6', { 'max-hp': 8 }),
-  // consumables
-  consumable('potion_heal', 'Healing Potion', '!', '#e55', 'heal-25'),
-  consumable('potion_greater', 'Greater Healing', '!', '#f7a', 'heal-50'),
-  consumable('antidote', 'Antidote', '!', '#7d7', 'antidote'),
-  consumable('scroll_haste', 'Scroll of Haste', '?', '#7cf', 'haste-self'),
-  consumable('scroll_fire', 'Scroll of Fireball', '?', '#f83', 'fireball'),
-  consumable('scroll_blink', 'Scroll of Blink', '?', '#c9f', 'blink'),
+  // consumables (potions/scrolls arrive UNIDENTIFIED — shown by appearance)
+  consumable('potion_heal', 'Healing Potion', '!', '#e55', 'heal-25', 'a crimson potion'),
+  consumable('potion_greater', 'Greater Healing', '!', '#f7a', 'heal-50', 'a glittering potion'),
+  consumable('antidote', 'Antidote', '!', '#7d7', 'antidote', 'a murky potion'),
+  consumable('scroll_haste', 'Scroll of Haste', '?', '#7cf', 'haste-self', 'a smudged scroll'),
+  consumable('scroll_fire', 'Scroll of Fireball', '?', '#f83', 'fireball', 'a charred scroll'),
+  consumable('scroll_blink', 'Scroll of Blink', '?', '#c9f', 'blink', 'a shimmering scroll'),
+  consumable('scroll_identify', 'Scroll of Identify', '?', '#fff', 'identify', 'a pristine scroll'),
+  consumable('scroll_uncurse', 'Scroll of Remove Curse', '?', '#fd7', 'remove-curse', 'a gilded scroll'),
+  consumable('ration', 'Ration', '%', '#da6', 'eat-ration'),
+  // a cursed ring (looks like an ordinary one until worn)
+  {
+    id: 'cursed_ring',
+    components: [
+      { type: 'renderable', glyph: '=', fg: '#888', layer: 3 },
+      { type: 'item', name: 'Ring of Burden', stackable: false, qty: 1 },
+      { type: 'equipment', slot: 'ring', bonuses: { defense: -2 }, cursed: true },
+      { type: 'identity', identified: false, appearance: 'a plain ring' },
+    ],
+  },
 ];
 
 // --- a small effect that strips a status (for the antidote) -----------------
@@ -302,3 +324,14 @@ export function registerGameContent(world: World): void {
   // Re-attach the (non-serialized) level provider so descent works after load.
   world.services.levelProvider = levelProvider;
 }
+
+/**
+ * Depths as a composable module. Depends on the base feature modules whose
+ * content it authors against (bounty/experience, satiation, identity, ranged,
+ * door tiles), so they set up first and tile/stat indices line up on reload.
+ */
+export const depthsModule: Module = {
+  id: 'depths',
+  dependencies: ['combat', 'progression', 'identification', 'ranged', 'hunger', 'doors'],
+  setup: registerGameContent,
+};

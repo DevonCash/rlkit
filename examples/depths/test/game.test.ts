@@ -110,32 +110,33 @@ describe('Depths — game over', () => {
   });
 });
 
-describe('Depths — save versioning', () => {
+describe('Depths — save compatibility (module manifest)', () => {
   const vp = { width: 40, height: 20 };
 
-  it('stamps saves with a version header and only continues compatible ones', () => {
+  it('saves and continues a compatible save', () => {
     const store = memStore();
     const g = createGame({ viewport: vp, storage: store, seed: 3 });
     g.start();
     g.onCommand({ type: 'confirm' }); // New Game
-    expect(g.hasSave()).toBe(false);
-
     g.onCommand({ type: 'save' });
-    const raw = store.get()!;
-    expect(raw.startsWith('depths:')).toBe(true);
-    expect(g.hasSave()).toBe(true);
+    expect(store.get()).not.toBeNull();
 
-    // A fresh controller over the same storage sees the compatible save.
+    // A fresh controller over the same storage continues it (no throw).
     const g2 = createGame({ viewport: vp, storage: store, seed: 9 });
     expect(g2.hasSave()).toBe(true);
+    g2.start();
+    g2.onCommand({ type: 'confirm' }); // Continue is the first item when a save exists
+    expect(g2.world.state.modules).toContain('depths'); // a real world is running
   });
 
-  it('discards a legacy / version-mismatched save on read (no silent degrade)', () => {
-    const legacy = memStore();
-    legacy.set('1\nlegacy-engine-blob'); // old un-versioned format
-    const g = createGame({ viewport: vp, storage: legacy, seed: 1 });
-    expect(g.hasSave()).toBe(false);
-    expect(legacy.get()).toBeNull(); // cleared so it can't be loaded
+  it('discards an incompatible / corrupt save instead of loading a degraded world', () => {
+    const store = memStore();
+    store.set('not-a-valid-save-blob');
+    const g = createGame({ viewport: vp, storage: store, seed: 1 });
+    g.start();
+    g.onCommand({ type: 'confirm' }); // Continue → load fails → falls back to New Game + clears
+    expect(store.get()).toBeNull();
+    expect(g.world.state.modules).toContain('depths'); // a fresh game is running
   });
 });
 

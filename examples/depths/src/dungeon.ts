@@ -89,8 +89,31 @@ export function makeLevel(world: World, depth: number): BuiltGameLevel {
     world.services.timeline.addActor(boss.id, deriveStat(boss, world, 'speed'));
   }
 
+  placeDoors(world, level, themeFloor, exclude);
   populate(world, level, depth, entrance, exclude);
   return { level, entrance, upStairsId };
+}
+
+/** Drop a few closed doors at corridor chokepoints (a floor cell walled on one axis). */
+function placeDoors(world: World, level: Level, themeFloor: number, exclude: Set<Cell>): void {
+  const palette = world.services.tiles;
+  const tiles = level.layers.get('tiles') as Uint16Array;
+  const doorClosed = palette.index('door_closed');
+  const blocks = (c: number): boolean => !palette.byIndex(tiles[c]!).walkable;
+  const rng = world.services.rng;
+  let placed = 0;
+  for (let tries = 0; tries < 500 && placed < 6; tries++) {
+    const x = 1 + rng.int(0, level.width - 3);
+    const y = 1 + rng.int(0, level.height - 3);
+    const c = y * level.width + x;
+    if (tiles[c] !== themeFloor || exclude.has(c)) continue;
+    const hCorridor = blocks(c - level.width) && blocks(c + level.width) && !blocks(c - 1) && !blocks(c + 1);
+    const vCorridor = blocks(c - 1) && blocks(c + 1) && !blocks(c - level.width) && !blocks(c + level.width);
+    if (hCorridor || vCorridor) {
+      tiles[c] = doorClosed;
+      placed++;
+    }
+  }
 }
 
 /** Scatter monsters and loot on reachable floor, away from stairs/occupied cells. */

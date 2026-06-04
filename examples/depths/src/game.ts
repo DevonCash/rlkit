@@ -23,6 +23,14 @@ import {
   createListModal,
   get,
   deriveStats,
+  combatModule,
+  progressionModule,
+  identificationModule,
+  rangedModule,
+  hungerModule,
+  doorsModule,
+  displayName,
+  type Module,
   type Config,
   type World,
   type Renderer,
@@ -32,8 +40,6 @@ import {
   type Stance,
   type Resources,
   type Position,
-  type Info,
-  type Item,
   type MessageLog,
   type FieldResolver,
   type Camera,
@@ -41,43 +47,53 @@ import {
   type TargetingModal,
   type Level,
 } from 'rlkit';
-import { registerGameContent } from './content';
+import { depthsModule } from './content';
 import { makeLevel, spawnPlayer } from './dungeon';
 import { MAX_DEPTH, biomeForDepth } from './biomes';
 
 export const SAVE_KEY = 'depths-save';
-/**
- * Game save-format version. The engine's `schemaVersion` only guards the
- * `WorldState` *shape*; it can't know when game *content* changes in a way that
- * breaks old saves (e.g. adding the `info` component). So the game stamps its
- * saves and discards any that don't match — bump this on an incompatible
- * content/save change rather than loading a degraded world.
- */
-const SAVE_VERSION = 1;
-const SAVE_HEADER = `depths:${SAVE_VERSION}`;
 const FINAL_LEVEL = `depth-${MAX_DEPTH}`;
 /** Rows reserved at the bottom of the canvas for the message log. */
 const LOG_ROWS = 6;
 /** Event payload fields that name an entity (resolved id → display name). */
 const ENTITY_FIELDS = new Set(['entity', 'target', 'source', 'actor', 'item']);
 
-/** Display name of an entity: its `info.name`, else an item's name, else a noun. */
+/**
+ * The opt-in modules Depths composes: combat depth, XP/levels, item identity &
+ * curses, ranged/throw, hunger, doors — then the game's own content. The same
+ * set is passed to `loadWorld`; the engine's manifest rejects a save written
+ * with a different set, so this list *is* the game's save-compatibility key.
+ */
+const MODULES: Module[] = [
+  combatModule({ critChance: 0.12, critMultiplier: 2 }),
+  progressionModule({ curve: (lvl) => 20 + (lvl - 1) * 15, gains: () => ({ 'max-hp': 5, attack: 1 }) }),
+  identificationModule(),
+  rangedModule(),
+  hungerModule({ drainPerTurn: 1, starveDamage: 1, maxSatiation: 100, foods: [{ effect: 'eat-ration', amount: 60 }] }),
+  doorsModule(),
+  depthsModule,
+];
+
+/** Display name of an entity (identity-aware), else a noun. */
 function nameOf(world: World, id: string): string {
-  const e = world.state.entities.get(id);
-  if (!e) return 'something';
-  return get<Info>(e, 'info')?.name ?? get<Item>(e, 'item')?.name ?? 'something';
+  if (!world.state.entities.has(id)) return 'something';
+  return displayName(world, id);
 }
 
-/** A status line: depth · biome · HP. */
+/** A status line: depth · biome · level · HP · hunger. */
 function statusText(world: World, player: string): string {
   const e = world.state.entities.get(player);
   if (!e) return '';
   const pos = get<Position>(e, 'position');
   const level = pos ? world.state.levels.get(pos.levelId) : undefined;
   const depth = Number(level?.metadata.depth ?? 0);
-  const hp = get<Resources>(e, 'resources')?.pools.hp?.current ?? 0;
-  const max = deriveStats(e, world)['max-hp'] ?? 0;
-  return `Depth ${depth} · ${biomeForDepth(depth).name}    HP ${hp}/${max}`;
+  const pools = get<Resources>(e, 'resources')?.pools;
+  const stats = deriveStats(e, world);
+  const hp = pools?.hp?.current ?? 0;
+  const lvl = (e.components.get('experience') as { level?: number } | undefined)?.level ?? 1;
+  const sat = pools?.satiation?.current ?? 0;
+  const food = sat <= 0 ? 'Starving' : sat < 25 ? 'Hungry' : 'Fed';
+  return `Depth ${depth} · ${biomeForDepth(depth).name}   Lv ${lvl}   HP ${hp}/${stats['max-hp'] ?? 0}   ${food}`;
 }
 
 /** Minimal persistence port (localStorage in the browser, a Map in tests). */
@@ -103,7 +119,10 @@ export const gameConfig: Config = {
       'item:equipped': '{entity} wields {item}.',
       'item:unequipped': '{entity} removes {item}.',
       'item:used': '{entity} uses an item.',
+      'item:identified': 'It is {item}!',
       'entity:changed-level': '{entity} takes the stairs.',
+      'leveled-up': '{entity} reaches level {level}!',
+      'curse:removed': 'A curse lifts from {entity}.',
     },
   },
   keymap: {
@@ -114,6 +133,7 @@ export const gameConfig: Config = {
     L: 'load',
     e: 'open-equipment',
     x: 'look',
+    t: 'throw',
   },
 };
 
@@ -145,19 +165,17 @@ export function findPlayer(world: World): string {
   throw new Error('findPlayer: no player in world');
 }
 
-/** Fresh world: register content, build level 1, drop the player in. */
+/** Fresh world: compose the modules, build level 1, drop the player in. */
 export function newGame(seed: number): { world: World; player: string } {
-  const world = createWorld({ config: gameConfig, rng: seed });
-  registerGameContent(world);
+  const world = createWorld({ config: gameConfig, rng: seed, modules: MODULES });
   const { level, entrance } = makeLevel(world, 1);
   const player = spawnPlayer(world, level.id, entrance);
   return { world, player: player.id };
 }
 
-/** Reload a saved world and re-attach game content (tiles/effects/provider). */
+/** Reload a saved world, re-composing the same modules (the engine validates the manifest). */
 export function loadGame(raw: string): { world: World; player: string } {
-  const world = loadWorld(raw, { config: gameConfig });
-  registerGameContent(world);
+  const world = loadWorld(raw, { config: gameConfig, modules: MODULES });
   return { world, player: findPlayer(world) };
 }
 
@@ -168,29 +186,30 @@ export function createGame(deps: GameDeps): Game {
   let camera!: Camera;
   let log: MessageLog | undefined;
   let lookModal: TargetingModal | undefined;
+  let throwModal: TargetingModal | undefined;
   let over = false;
 
   const colors = gameConfig.ui.modal;
 
-  /** Persist the world behind the game's version header. */
   function writeSave(): void {
-    deps.storage.set(`${SAVE_HEADER}\n${encodeSave(world)}`);
+    deps.storage.set(encodeSave(world));
   }
 
   /**
-   * The engine save payload if a *compatible* save exists, else null. Legacy or
-   * version-mismatched saves are discarded on read so they can never silently
-   * load a degraded world.
+   * Load the saved game if one exists and is compatible, else null. The engine's
+   * module manifest throws when a save was written with a different module set
+   * (the game's save-compatibility key) — we discard such saves rather than load
+   * a degraded world.
    */
-  function readSave(): string | null {
+  function tryLoad(): { world: World; player: string } | null {
     const raw = deps.storage.get();
     if (raw === null) return null;
-    const nl = raw.indexOf('\n');
-    if (nl < 0 || raw.slice(0, nl) !== SAVE_HEADER) {
+    try {
+      return loadGame(raw);
+    } catch {
       deps.storage.clear();
       return null;
     }
-    return raw.slice(nl + 1);
   }
 
   function bind(next: { world: World; player: string }): void {
@@ -198,6 +217,7 @@ export function createGame(deps: GameDeps): Game {
     player = next.player;
     over = false;
     lookModal = undefined;
+    throwModal = undefined;
     camera = { centerOn: player };
     log?.dispose(); // stop the previous world's subscription
     const resolve: FieldResolver = (field, value) =>
@@ -276,6 +296,31 @@ export function createGame(deps: GameDeps): Game {
     session.pushModal(modal);
   }
 
+  /** Enter throw mode: aim a cursor, then fire a ranged attack at the chosen cell. */
+  function startThrow(): void {
+    const pl = playerLevel();
+    if (!pl) return;
+    const vp = mapBand();
+    const origin = viewportOrigin(world, pl.level, vp, camera);
+    const modal = createTargetingModal({
+      cursor: { x: pl.pos.x - origin.x, y: pl.pos.y - origin.y },
+      viewport: vp,
+      colors: gameConfig.ui.targeting,
+      onCancel: () => { throwModal = undefined; },
+      onConfirm: (cur) => {
+        throwModal = undefined;
+        const o = viewportOrigin(world, pl.level, vp, camera);
+        const lx = o.x + cur.x;
+        const ly = o.y + cur.y;
+        if (lx >= 0 && lx < pl.level.width && ly >= 0 && ly < pl.level.height) {
+          session.submit({ type: 'ranged', actor: player, target: ly * pl.level.width + lx });
+        }
+      },
+    });
+    throwModal = modal;
+    session.pushModal(modal);
+  }
+
   function equipmentModal(): void {
     const e = world.state.entities.get(player);
     const equipped = (e?.components.get('equipped') as unknown as { slots: Record<string, string> } | undefined)?.slots ?? {};
@@ -290,35 +335,47 @@ export function createGame(deps: GameDeps): Game {
     );
   }
 
+  /** Inventory listing that respects item identity (unidentified → appearance). */
+  function inventoryModal(): void {
+    const e = world.state.entities.get(player);
+    const inv = (e?.components.get('inventory') as unknown as { items: string[] } | undefined)?.items ?? [];
+    session.pushModal(
+      createListModal<string>({
+        title: inv.length ? 'Inventory' : 'Inventory (empty)',
+        items: inv.map((id) => ({ label: nameOf(world, id), value: id })),
+        onSelect: (id) => session.dispatch({ type: 'item-default', item: id }),
+        colors,
+      }),
+    );
+  }
+
   // --- the game's command table (merged over the session defaults) ----------
   const commands: CommandTable = {
     descend: (_cmd, ctx) => ctx.submit({ type: 'descend', actor: player }),
     ascend: (_cmd, ctx) => ctx.submit({ type: 'ascend', actor: player }),
+    'open-inventory': () => inventoryModal(),
     'open-equipment': () => equipmentModal(),
     look: () => startLook(),
+    throw: () => startThrow(),
     save: () => {
       writeSave();
       log?.add('Game saved.');
     },
     load: () => {
-      const payload = readSave();
-      if (payload) bind(loadGame(payload));
+      const loaded = tryLoad();
+      if (loaded) bind(loaded);
       else log?.add('No compatible save.');
     },
   };
 
   function titleModal(): void {
     const items = [{ label: 'New Game', value: 'new' }];
-    if (readSave()) items.unshift({ label: 'Continue', value: 'continue' });
+    if (deps.storage.get() !== null) items.unshift({ label: 'Continue', value: 'continue' });
     session.pushModal(
       createListModal<string>({
         title: 'D E P T H S',
         items,
-        onSelect: (v) => {
-          const payload = v === 'continue' ? readSave() : null;
-          if (payload) bind(loadGame(payload));
-          else bind(newGame(deps.seed));
-        },
+        onSelect: (v) => bind((v === 'continue' && tryLoad()) || newGame(deps.seed)),
         colors,
       }),
     );
@@ -344,9 +401,10 @@ export function createGame(deps: GameDeps): Game {
     // map band (top)
     for (let i = 0; i < map.cells.length; i++) cells[i] = map.cells[i]!;
 
-    if (lookModal) {
-      // Look mode: cursor on the map, the examined cell's info in the status/log bands.
-      renderLook(cells, cols, mapH);
+    const cursorModal = lookModal ?? throwModal;
+    if (cursorModal) {
+      // Cursor mode (look / throw): cursor on the map, target info in the bands.
+      renderCursor(cells, cols, mapH, cursorModal, lookModal ? 'Look' : 'Throw');
     } else {
       writeRow(cells, cols, mapH, statusText(world, player), '#fe9');
       const msgs = (log?.messages() ?? []).slice(-LOG_ROWS);
@@ -356,10 +414,11 @@ export function createGame(deps: GameDeps): Game {
     deps.renderer.draw({ width: cols, height: rows, cells, overlays: [] });
   }
 
-  /** While looking: highlight the cursor cell and print the examined cell's info. */
-  function renderLook(cells: FrameCell[], cols: number, mapH: number): void {
-    writeRow(cells, cols, mapH, 'Look — move cursor · Esc to exit', '#fe9');
-    const cur = lookModal!.cursor();
+  /** Highlight a cursor on the map and print the targeted cell's contents. */
+  function renderCursor(cells: FrameCell[], cols: number, mapH: number, modal: TargetingModal, mode: 'Look' | 'Throw'): void {
+    const hint = mode === 'Throw' ? 'Throw — aim · Enter to fire · Esc' : 'Look — move cursor · Esc to exit';
+    writeRow(cells, cols, mapH, hint, '#fe9');
+    const cur = modal.cursor();
     const hi = cells[cur.y * cols + cur.x];
     if (hi && cur.y < mapH) cells[cur.y * cols + cur.x] = { ...hi, bg: '#640' };
 
@@ -373,7 +432,10 @@ export function createGame(deps: GameDeps): Game {
         const d = describeCell(world, pl.level.id, ly * pl.level.width + lx);
         if (!d.visible) lines.push('Out of sight.');
         else if (d.entities.length === 0) lines.push(`${d.tile.id.replace(/_/g, ' ')} — nothing here.`);
-        else for (const e of d.entities) lines.push(e.description ? `${e.name} — ${e.description}` : e.name);
+        else for (const e of d.entities) {
+          const name = displayName(world, e.id); // identity-aware (unidentified → appearance)
+          lines.push(e.description ? `${name} — ${e.description}` : name);
+        }
       } else {
         lines.push('Out of sight.');
       }
@@ -390,7 +452,7 @@ export function createGame(deps: GameDeps): Game {
     get player() {
       return player;
     },
-    hasSave: () => readSave() !== null,
+    hasSave: () => deps.storage.get() !== null,
     onCommand(cmd) {
       session.onCommand(cmd);
       checkGameOver();

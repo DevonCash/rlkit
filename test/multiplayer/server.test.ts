@@ -1,0 +1,100 @@
+import { describe, it, expect } from 'vitest';
+import { createWorld, createGameServer } from '../../src/index';
+import { decodeState } from '../../src/adapters/storage';
+import { createLevel, levelCell, type Level } from '../../src/core/level';
+import { createEntity, get } from '../../src/core/entity';
+import type { Position } from '../../src/core/component';
+import type { World } from '../../src/core/world';
+import type { EntityId } from '../../src/core/entity';
+import type { WorldState } from '../../src/core/world';
+import { defaultConfig } from '../../src/config/defaults';
+
+const W = 20;
+const H = 7;
+
+/** A spawnPlayer that drops each new player at a distinct floor cell. */
+function makeSpawn(lvl: Level) {
+  let n = 0;
+  return (world: World): EntityId => {
+    const id = `player-${n}`;
+    const x = 3 + n * 5;
+    n++;
+    const e = createEntity(id, [
+      { type: 'position', x, y: 3, levelId: lvl.id },
+      { type: 'allegiance', faction: 'player' },
+    ]);
+    world.state.entities.set(id, e);
+    world.services.queries.index(e);
+    world.services.queries.place(id, lvl.id, levelCell(lvl, x, 3));
+    world.services.timeline.addActor(id, 10);
+    return id;
+  };
+}
+
+function setup() {
+  const world = createWorld({ config: defaultConfig, rng: 1 });
+  const lvl = createLevel('L', W, H, 1);
+  world.state.levels.set('L', lvl);
+  return { world, lvl, server: createGameServer({ world, spawnPlayer: makeSpawn(lvl) }) };
+}
+const xOf = (world: World, id: string) => get<Position>(world.state.entities.get(id)!, 'position')!.x;
+
+describe('GameServer (§6.5) — authoritative co-op session', () => {
+  it('joins players, applies their buffered actions in the shared world, and leaves', () => {
+    const { world, server } = setup();
+    const a = server.join();
+    const b = server.join();
+    expect([...server.players].sort()).toEqual([a, b].sort());
+
+    server.enqueue(a, { type: 'move', actor: a, dir: { x: 1, y: 0 } });
+    server.enqueue(b, { type: 'move', actor: b, dir: { x: 1, y: 0 } });
+    const update = server.tick(1);
+    expect(update.acted.sort()).toEqual([a, b].sort());
+    expect(xOf(world, a)).toBe(3 + 1); // player-0 spawned at x=3 → moved east
+    expect(xOf(world, b)).toBe(8 + 1); // player-1 at x=8 → moved east
+
+    server.leave(a);
+    expect(server.players.has(a)).toBe(false);
+    expect(world.state.entities.has(a)).toBe(false);
+  });
+
+  it('produces a snapshot a (re)joining client can decode', () => {
+    const { server } = setup();
+    const a = server.join();
+    const b = server.join();
+    server.tick(1);
+    const state = decodeState(server.snapshot()) as WorldState;
+    expect(state.entities.has(a)).toBe(true);
+    expect(state.entities.has(b)).toBe(true);
+  });
+
+  it('idles only once every player has left', () => {
+    const { server } = setup();
+    const a = server.join();
+    const b = server.join();
+    expect(server.tick(1).idle).toBe(false);
+    server.leave(a);
+    expect(server.tick(1).idle).toBe(false); // b still playing
+    server.leave(b);
+    expect(server.tick(1).idle).toBe(true);
+  });
+
+  it('is deterministic: same join/enqueue/tick stream → identical worlds', () => {
+    const digest = (world: World) =>
+      JSON.stringify([...world.state.entities.values()].map((e) => [e.id, get<Position>(e, 'position')]).sort((x, y) => (x[0]! < y[0]! ? -1 : 1)));
+    const run = () => {
+      const { world, server } = setup();
+      const a = server.join();
+      const b = server.join();
+      for (let i = 0; i < 20; i++) {
+        if (i % 3 === 0) {
+          server.enqueue(a, { type: 'move', actor: a, dir: { x: 1, y: 0 } });
+          server.enqueue(b, { type: 'move', actor: b, dir: { x: 0, y: 1 } });
+        }
+        server.tick(1);
+      }
+      return world;
+    };
+    expect(digest(run())).toBe(digest(run()));
+  });
+});

@@ -339,6 +339,8 @@ export type { Renderer } from './render/renderer';
 export { AsciiRenderer } from './render/ascii-renderer';
 export { CanvasRenderer } from './render/canvas-renderer';
 export type { Ctx2D, CanvasRendererOptions } from './render/canvas-renderer';
+export { createGameServer } from './multiplayer/server';
+export type { GameServer, GameServerOptions, ServerUpdate } from './multiplayer/server';
 export { takeTurn, step, tickRealtime, tickRealtimeMulti } from './sim/driver';
 export type {
   TakeTurnOptions,

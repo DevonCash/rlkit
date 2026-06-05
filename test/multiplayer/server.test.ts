@@ -21,7 +21,10 @@ function makeSpawn(lvl: Level) {
     n++;
     const e = createEntity(id, [
       { type: 'position', x, y: 3, levelId: lvl.id },
+      { type: 'renderable', glyph: '@', fg: '#fff', layer: 10 },
       { type: 'allegiance', faction: 'player' },
+      { type: 'stats', base: { 'max-hp': 30, 'sight-radius': 8 } },
+      { type: 'resources', pools: { hp: { current: 30 } } },
     ]);
     world.state.entities.set(id, e);
     world.services.queries.index(e);
@@ -77,6 +80,57 @@ describe('GameServer (§6.5) — authoritative co-op session', () => {
     expect(server.tick(1).idle).toBe(false); // b still playing
     server.leave(b);
     expect(server.tick(1).idle).toBe(true);
+  });
+
+  it('viewFor (hidden fog) renders only what THAT player can see — the wire leaks nothing', () => {
+    const world = createWorld({ config: defaultConfig, rng: 1 });
+    const lvl = createLevel('L', W, H, 1);
+    world.state.levels.set('L', lvl);
+    const server = createGameServer({ world, spawnPlayer: makeSpawn(lvl), fog: 'hidden' });
+    const a = server.join(); // at x=3
+    const b = server.join(); // at x=8
+
+    // A monster only B is close enough to see (range 8): x=12 is 9 from A, 4 from B.
+    const mon = createEntity('mon', [
+      { type: 'position', x: 12, y: 3, levelId: 'L' },
+      { type: 'renderable', glyph: 'M', fg: '#f00', layer: 5 },
+    ]);
+    world.state.entities.set('mon', mon);
+    world.services.queries.index(mon);
+    world.services.queries.place('mon', 'L', levelCell(lvl, 12, 3));
+
+    server.tick(1); // computes each player's private FOV
+
+    const vp = { width: W, height: H };
+    const hasMon = (id: string) => server.viewFor(id, vp).frame.cells.some((c) => c.glyph === 'M');
+    expect(hasMon(b)).toBe(true); // B sees the monster
+    expect(hasMon(a)).toBe(false); // A does NOT — it isn't even in A's frame
+
+    const view = server.viewFor(a, vp);
+    expect(view.hp).toEqual({ current: 30, max: 30 });
+    expect(view.alive).toBe(true);
+    server.leave(a);
+    expect(server.viewFor(a, vp).alive).toBe(false);
+  });
+
+  it('viewFor (shared fog) shows the monster to both players', () => {
+    const world = createWorld({ config: defaultConfig, rng: 1 });
+    const lvl = createLevel('L', W, H, 1);
+    world.state.levels.set('L', lvl);
+    const server = createGameServer({ world, spawnPlayer: makeSpawn(lvl), fog: 'shared' });
+    const a = server.join();
+    const b = server.join();
+    const mon = createEntity('mon', [
+      { type: 'position', x: 12, y: 3, levelId: 'L' },
+      { type: 'renderable', glyph: 'M', fg: '#f00', layer: 5 },
+    ]);
+    world.state.entities.set('mon', mon);
+    world.services.queries.index(mon);
+    world.services.queries.place('mon', 'L', levelCell(lvl, 12, 3));
+    server.tick(1);
+    const vp = { width: W, height: H };
+    expect(server.viewFor(a, vp).frame.cells.some((c) => c.glyph === 'M')).toBe(true);
+    expect(server.viewFor(b, vp).frame.cells.some((c) => c.glyph === 'M')).toBe(true);
   });
 
   it('is deterministic: same join/enqueue/tick stream → identical worlds', () => {

@@ -11,10 +11,16 @@
  * action in deterministic timeline order with shared (union) fog, the event bus
  * is the delta stream, and `encodeState`/`decodeState` is the snapshot.
  */
+import { get } from '../core/entity';
 import type { World } from '../core/world';
 import type { EntityId } from '../core/entity';
 import type { Action } from '../core/action';
+import type { Resources } from '../core/component';
 import { tickRealtimeMulti } from '../sim/driver';
+import { deriveStat } from '../sim/stats';
+import { computeVisibilityFor, visibleLayerFor, exploredLayerFor } from '../sim/visibility';
+import { buildFrame, type RenderFrame } from '../render/frame';
+import type { Viewport } from '../render/camera';
 import { encodeState } from '../adapters/storage';
 
 export interface GameServerOptions {
@@ -23,6 +29,22 @@ export interface GameServerOptions {
   spawnPlayer: (world: World) => EntityId;
   /** Remove a leaving player. Defaults to: unschedule, unindex, delete. */
   removePlayer?: (world: World, id: EntityId) => void;
+  /**
+   * Visibility model. `'shared'` (default) — every client renders the union of
+   * all players' fog. `'hidden'` — each client renders only its own player's FOV
+   * (competitive / anti-cheat): `viewFor` returns a frame with unseen entities
+   * already absent, so the wire payload leaks nothing.
+   */
+  fog?: 'shared' | 'hidden';
+}
+
+/** The per-player render payload a transport sends to ONE client. */
+export interface PlayerView {
+  /** Pre-rendered frame through this player's visibility (the anti-cheat unit). */
+  frame: RenderFrame;
+  hp?: { current: number; max: number };
+  /** False once this player has left the timeline (death). */
+  alive: boolean;
 }
 
 /** The result of one server tick — what a transport fans out to clients. */
@@ -46,6 +68,8 @@ export interface GameServer {
   enqueue(id: EntityId, action: Action): void;
   /** Advance the shared world by `ticks` world-ticks and report what happened. */
   tick(ticks: number): ServerUpdate;
+  /** A player's render payload — what the transport sends only to that client. */
+  viewFor(id: EntityId, viewport: Viewport): PlayerView;
   /** A snapshot string for a (re)joining client to mirror. */
   snapshot(): string;
 }
@@ -61,6 +85,7 @@ function defaultRemove(world: World, id: EntityId): void {
 export function createGameServer(opts: GameServerOptions): GameServer {
   const { world, spawnPlayer } = opts;
   const remove = opts.removePlayer ?? defaultRemove;
+  const fog = opts.fog ?? 'shared';
   const players = new Set<EntityId>();
   const buffers = new Map<EntityId, Action>();
 
@@ -87,7 +112,22 @@ export function createGameServer(opts: GameServerOptions): GameServer {
         ticks,
       });
       for (const id of res.acted) buffers.delete(id); // one-shot
+      // Hidden fog: refresh each player's private FOV layers for `viewFor`.
+      if (fog === 'hidden') for (const id of players) computeVisibilityFor(world, id);
       return { worldClock: res.worldClock, acted: res.acted, idle: res.idle };
+    },
+    viewFor(id, viewport) {
+      const layers =
+        fog === 'hidden' ? { visibleLayer: visibleLayerFor(id), exploredLayer: exploredLayerFor(id) } : {};
+      const frame = buildFrame(world, viewport, { centerOn: id }, layers);
+      const e = world.state.entities.get(id);
+      const pool = e && get<Resources>(e, 'resources')?.pools.hp;
+      const alive = world.state.timeline.actors.some((a) => a.id === id);
+      return {
+        frame,
+        alive,
+        ...(e && pool ? { hp: { current: pool.current, max: deriveStat(e, world, 'max-hp') } } : {}),
+      };
     },
     snapshot() {
       world.state.rng = world.services.rng.getState();

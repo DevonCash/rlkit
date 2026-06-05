@@ -155,6 +155,12 @@ export interface TickRealtimeMultiOptions {
   /** The buffered action for a player whose turn comes up (else it waits). */
   actionFor: (id: EntityId) => Action | undefined;
   ticks: number;
+  /**
+   * Recompute the shared (union) fog after the tick (default `true`). Set
+   * `false` when the caller manages visibility itself — e.g. hidden-info per
+   * player — to avoid computing a union it won't use.
+   */
+  updateFog?: boolean;
 }
 
 export interface RealtimeMultiResult {
@@ -217,7 +223,9 @@ export function tickRealtimeMulti(world: World, opts: TickRealtimeMultiOptions):
   if (playersScheduled() && timeline.worldClock < target) timeline.advanceClock(target - timeline.worldClock);
 
   // Shared fog: union of every living player's FOV into each level's `visible`.
-  computeVisibilityUnion(world, [...players].filter((id) => world.state.entities.has(id)));
+  if (opts.updateFog !== false) {
+    computeVisibilityUnion(world, [...players].filter((id) => world.state.entities.has(id)));
+  }
 
   return { worldClock: timeline.worldClock, acted, idle: !playersScheduled() };
 }

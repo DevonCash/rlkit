@@ -26,6 +26,16 @@ describe('move handler', () => {
     spawnAt(w, 'hero', 'L', 0, 0);
     expect(resolve(w, { type: 'move', actor: 'hero', dir: { x: 0, y: -1 } }).status).toBe('rejected');
   });
+
+  it('rejects a non-finite dir (untrusted input) without corrupting position', () => {
+    const w = makeWorld();
+    w.state.levels.set('L', makeLevel('L', 6, 6));
+    spawnAt(w, 'hero', 'L', 2, 2);
+    // A NaN dir would slip past `< 0 || >= width` (NaN comparisons are false).
+    expect(resolve(w, { type: 'move', actor: 'hero', dir: { x: NaN, y: 0 } }).status).toBe('rejected');
+    const pos = get<Position>(w.state.entities.get('hero')!, 'position')!;
+    expect({ x: pos.x, y: pos.y }).toEqual({ x: 2, y: 2 }); // unmoved, no NaN
+  });
 });
 
 describe('wait handler', () => {

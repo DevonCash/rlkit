@@ -117,7 +117,10 @@ export function moveHandler(ctx: ActionContext): void {
   }
   const toX = pos.x + dir.x;
   const toY = pos.y + dir.y;
-  if (toX < 0 || toX >= level.width || toY < 0 || toY >= level.height) {
+  // Reject a non-finite destination (e.g. a `NaN`/non-numeric `dir` from an
+  // untrusted client) — `NaN` comparisons are false, so guard it explicitly so a
+  // bad `dir` can never corrupt the actor's position.
+  if (!Number.isFinite(toX) || !Number.isFinite(toY) || toX < 0 || toX >= level.width || toY < 0 || toY >= level.height) {
     ctx.reject('move: destination out of bounds');
     return;
   }

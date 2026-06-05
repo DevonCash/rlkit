@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createWorld, createGameServer } from '../../src/index';
+import { createWorld, createGameServer, visibleLayerFor, exploredLayerFor } from '../../src/index';
 import { decodeState } from '../../src/adapters/storage';
 import { createLevel, levelCell, type Level } from '../../src/core/level';
 import { createEntity, get } from '../../src/core/entity';
@@ -111,6 +111,19 @@ describe('GameServer (§6.5) — authoritative co-op session', () => {
     expect(view.alive).toBe(true);
     server.leave(a);
     expect(server.viewFor(a, vp).alive).toBe(false);
+  });
+
+  it('drops a player’s per-level visibility layers on leave (no accumulation)', () => {
+    const world = createWorld({ config: defaultConfig, rng: 1 });
+    const lvl = createLevel('L', W, H, 1);
+    world.state.levels.set('L', lvl);
+    const server = createGameServer({ world, spawnPlayer: makeSpawn(lvl), fog: 'hidden' });
+    const a = server.join(); // join() seeds the player's FOV layers
+    expect(lvl.layers.has(visibleLayerFor(a))).toBe(true);
+    expect(lvl.layers.has(exploredLayerFor(a))).toBe(true);
+    server.leave(a);
+    expect(lvl.layers.has(visibleLayerFor(a))).toBe(false);
+    expect(lvl.layers.has(exploredLayerFor(a))).toBe(false);
   });
 
   it('viewFor (shared fog) shows the monster to both players', () => {

@@ -95,12 +95,20 @@ export function createGameServer(opts: GameServerOptions): GameServer {
     join() {
       const id = spawnPlayer(world);
       players.add(id);
+      if (fog === 'hidden') computeVisibilityFor(world, id); // seed the new player's FOV
       return id;
     },
     leave(id) {
       players.delete(id);
       buffers.delete(id);
       remove(world, id);
+      // Drop this player's per-level visibility layers so they don't accumulate.
+      const vis = visibleLayerFor(id);
+      const exp = exploredLayerFor(id);
+      for (const level of world.state.levels.values()) {
+        level.layers.delete(vis);
+        level.layers.delete(exp);
+      }
     },
     enqueue(id, action) {
       if (players.has(id)) buffers.set(id, action);
@@ -110,10 +118,12 @@ export function createGameServer(opts: GameServerOptions): GameServer {
         players,
         actionFor: (id) => buffers.get(id),
         ticks,
+        updateFog: fog === 'shared', // hidden mode manages its own per-player fog below
       });
       for (const id of res.acted) buffers.delete(id); // one-shot
-      // Hidden fog: refresh each player's private FOV layers for `viewFor`.
-      if (fog === 'hidden') for (const id of players) computeVisibilityFor(world, id);
+      // Hidden fog: a player's FOV only changes when it moves, so recompute just
+      // the movers (joins are seeded in `join`).
+      if (fog === 'hidden') for (const id of res.acted) computeVisibilityFor(world, id);
       return { worldClock: res.worldClock, acted: res.acted, idle: res.idle };
     },
     viewFor(id, viewport) {

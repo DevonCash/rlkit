@@ -16,6 +16,9 @@ import {
   pointOf,
   reachableFrom,
   computeVisibilityUnion,
+  computeVisibilityFor,
+  visibleLayerFor,
+  exploredLayerFor,
   createGameServer,
   buildFrame,
   CanvasRenderer,
@@ -105,7 +108,21 @@ const server = createGameServer({ world, spawnPlayer });
 const p1 = server.join();
 const p2 = server.join();
 for (let i = 0; i < 8; i++) spawnMonster(); // after players, so they don't overlap
-computeVisibilityUnion(world, [p1, p2]);
+
+// Fog mode: `hidden` = per-player FOV (each side sees only its own knowledge);
+// shared = the union of both players' FOV. Toggle with Tab.
+let hidden = true;
+function recomputeFog(): void {
+  if (hidden) {
+    computeVisibilityFor(world, p1);
+    computeVisibilityFor(world, p2);
+  } else {
+    computeVisibilityUnion(world, [p1, p2]);
+  }
+}
+const viewOpts = (id: EntityId) =>
+  hidden ? { visibleLayer: visibleLayerFor(id), exploredLayer: exploredLayerFor(id) } : {};
+recomputeFog();
 
 // --- input: each player's keys buffer a move on the server -----------------
 const MOVES: Record<string, { x: number; y: number }> = {
@@ -117,6 +134,13 @@ const MOVES: Record<string, { x: number; y: number }> = {
 const P1: Record<string, keyof typeof MOVES> = { ArrowUp: 'N', ArrowDown: 'S', ArrowLeft: 'W', ArrowRight: 'E' };
 const P2: Record<string, keyof typeof MOVES> = { w: 'N', s: 'S', a: 'W', d: 'E' };
 window.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Tab') {
+    hidden = !hidden;
+    recomputeFog();
+    render();
+    ev.preventDefault();
+    return;
+  }
   const m1 = P1[ev.key];
   if (m1) {
     server.enqueue(p1, { type: 'move', actor: p1, dir: MOVES[m1]! });
@@ -145,6 +169,7 @@ function frame(now: number): void {
     if (ticks > 0) {
       acc -= ticks * MS_PER_TICK;
       if (server.tick(ticks).idle) over = true;
+      recomputeFog(); // refresh each player's (or the shared) FOV after movement
     }
   }
   render();
@@ -179,8 +204,8 @@ function render(): void {
   const cells: FrameCell[] = new Array(COLS * ROWS);
   for (let i = 0; i < cells.length; i++) cells[i] = blank();
   const vp = { width: HALF, height: MAPH };
-  copyInto(cells, 0, buildFrame(world, vp, { centerOn: p1 }));
-  copyInto(cells, HALF + 1, buildFrame(world, vp, { centerOn: p2 }));
+  copyInto(cells, 0, buildFrame(world, vp, { centerOn: p1 }, viewOpts(p1)));
+  copyInto(cells, HALF + 1, buildFrame(world, vp, { centerOn: p2 }, viewOpts(p2)));
   for (let y = 0; y < MAPH; y++) {
     const c = cells[y * COLS + HALF];
     if (c) {
@@ -189,7 +214,7 @@ function render(): void {
     }
   }
   writeRow(cells, 0, MAPH, `Player 1   ${hpText(p1)}`, '#6cf');
-  writeRow(cells, HALF + 1, MAPH, `Player 2   ${hpText(p2)}`, '#fc6');
+  writeRow(cells, HALF + 1, MAPH, `Player 2   ${hpText(p2)}   [Tab: ${hidden ? 'hidden' : 'shared'} fog]`, '#fc6');
   if (over) writeRow(cells, (COLS >> 1) - 5, MAPH >> 1, ' GAME OVER ', '#f55');
   renderer.draw({ width: COLS, height: ROWS, cells, overlays: [] });
 }

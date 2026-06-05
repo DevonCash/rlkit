@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>rlkit — real-time co-op</title>
+    <style>
+      body { background: #0a0a0c; color: #ccc; margin: 0; font-family: monospace; }
+      h1 { font-size: 14px; text-align: center; padding: 8px; margin: 0; color: #8ad; letter-spacing: 2px; }
+      canvas { display: block; margin: 6px auto; background: #000; image-rendering: pixelated; }
+      p { text-align: center; color: #777; font-size: 12px; line-height: 1.6; }
+      b.p1 { color: #6cf; } b.p2 { color: #fc6; }
+    </style>
+  </head>
+  <body>
+    <h1>R L K I T &nbsp; — &nbsp; R E A L - T I M E &nbsp; C O - O P</h1>
+    <canvas id="game" width="1040" height="544"></canvas>
+    <p>
+      One authoritative <code>GameServer</code>, two players, one shared dungeon — in real time.<br />
+      <b class="p1">Player 1: arrow keys</b> &nbsp;·&nbsp; <b class="p2">Player 2: W A S D</b><br />
+      The world keeps ticking; the map reveals as either of you explores; one death doesn't end the other's run.
+    </p>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

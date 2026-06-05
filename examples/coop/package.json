@@ -1,0 +1,15 @@
+{
+  "name": "rlkit-example-coop",
+  "private": true,
+  "type": "module",
+  "description": "Real-time co-op demo: one authoritative GameServer, two players sharing a dungeon in a split view (in-process, no network).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vite": "^7.0.0"
+  }
+}

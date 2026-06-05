@@ -55,6 +55,44 @@ export function computeVisibility(world: World, viewerId: string, radius?: numbe
   return visible;
 }
 
+/**
+ * Shared (co-op) FOV: a level's `visible` becomes the UNION of every viewer
+ * standing on it, with each viewer's cells also OR'd into `explored`. Viewers are
+ * grouped by level, each level cleared once then accumulated, so two players on
+ * one floor see one combined fog — no per-player layers, no render/log refactor.
+ * The single-viewer `computeVisibility` is unchanged (single-player keeps using it).
+ */
+export function computeVisibilityUnion(world: World, viewerIds: readonly string[]): void {
+  const byLevel = new Map<string, string[]>();
+  for (const id of viewerIds) {
+    const e = world.state.entities.get(id);
+    const pos = e && get<Position>(e, 'position');
+    if (!pos) continue;
+    let ids = byLevel.get(pos.levelId);
+    if (!ids) byLevel.set(pos.levelId, (ids = []));
+    ids.push(id);
+  }
+
+  const palette = world.services.tiles;
+  for (const [levelId, ids] of byLevel) {
+    const level = world.state.levels.get(levelId);
+    if (!level) continue;
+    const visibleLayer = ensureU8(level, VISIBLE_LAYER);
+    const exploredLayer = ensureU8(level, EXPLORED_LAYER);
+    visibleLayer.fill(0);
+    const transparent = (p: Point): boolean =>
+      inBounds(p, level.width, level.height) && isTransparent(level, cellOf(p, level.width), palette);
+    for (const id of ids) {
+      const pos = get<Position>(world.state.entities.get(id)!, 'position')!;
+      const r = deriveStat(world.state.entities.get(id)!, world, 'sight-radius') || world.services.config.fov.defaultRadius;
+      for (const cell of world.services.fov.compute({ x: pos.x, y: pos.y }, r, transparent, level.width)) {
+        visibleLayer[cell] = 1;
+        exploredLayer[cell] = 1;
+      }
+    }
+  }
+}
+
 export function isVisible(level: Level, cell: Cell): boolean {
   return (level.layers.get(VISIBLE_LAYER) as Uint8Array | undefined)?.[cell] === 1;
 }

@@ -15,7 +15,7 @@ import type { Action, ActionOutcome, TimerEffect } from '../core/action';
 import { perform, runReactions } from './action';
 import { decideAction } from './ai/decide';
 import { tickActor } from './status';
-import { computeVisibility } from './visibility';
+import { computeVisibility, computeVisibilityUnion } from './visibility';
 
 export interface TakeTurnOptions {
   player: EntityId;
@@ -147,4 +147,77 @@ export function tickRealtime(world: World, opts: TickRealtimeOptions): RealtimeR
   // drive — true even when the timeline emptied without `takeTurn` running.
   idle = idle || !world.state.timeline.actors.some((a) => a.id === opts.player);
   return { worldClock: timeline.worldClock, playerActed, idle };
+}
+
+export interface TickRealtimeMultiOptions {
+  /** The human-controlled actors; everyone else runs `decideAction` (AI). */
+  players: ReadonlySet<EntityId> | readonly EntityId[];
+  /** The buffered action for a player whose turn comes up (else it waits). */
+  actionFor: (id: EntityId) => Action | undefined;
+  ticks: number;
+}
+
+export interface RealtimeMultiResult {
+  worldClock: number;
+  /** Players who took a turn this call (the caller clears their input buffers). */
+  acted: EntityId[];
+  /** True once NO player remains scheduled — co-op game over. */
+  idle: boolean;
+}
+
+/**
+ * The co-op real-time driver: like {@link tickRealtime} but for a SET of
+ * player-actors sharing one world. A due actor in `players` consumes its buffered
+ * action (or waits); everyone else is AI. Visibility is the shared union of all
+ * players' FOV (recomputed once per call). Determinism is preserved (the timeline
+ * orders actors by id). Single-player drivers are untouched.
+ */
+export function tickRealtimeMulti(world: World, opts: TickRealtimeMultiOptions): RealtimeMultiResult {
+  const timeline = world.services.timeline;
+  const players = opts.players instanceof Set ? opts.players : new Set(opts.players);
+  const target = timeline.worldClock + Math.max(0, opts.ticks);
+  const baseCost = world.services.config.baseActionCost;
+  const acted: EntityId[] = [];
+  const playersScheduled = (): boolean => world.state.timeline.actors.some((a) => players.has(a.id));
+
+  // Buffer each player's action once for this call (consumed on their first turn).
+  const buffered = new Map<EntityId, Action | undefined>();
+  for (const id of players) buffered.set(id, opts.actionFor(id));
+
+  while (playersScheduled() && timeline.peekNextDue() <= target) {
+    let entry: Entry;
+    try {
+      entry = timeline.next();
+    } catch {
+      break;
+    }
+    if (entry.kind === 'effect') {
+      const fx = world.services.registries.timerEffects?.tryGet(entry.effectId) as TimerEffect | undefined;
+      if (fx) runReactions(world, fx(world, entry.payload));
+      continue;
+    }
+    const id = entry.id;
+    const isPlayer = players.has(id);
+    let action: Action | undefined;
+    if (isPlayer) {
+      action = buffered.get(id) ?? { type: 'wait', actor: id };
+      buffered.set(id, undefined); // one-shot — further turns this call wait
+    } else {
+      action = decideAction(world, id);
+    }
+    if (action) {
+      const outcome = perform(world, action);
+      timeline.reschedule(id, outcome.status === 'rejected' ? baseCost : outcome.cost);
+    } else {
+      timeline.reschedule(id, baseCost);
+    }
+    runReactions(world, tickActor(world, id));
+    if (isPlayer) acted.push(id);
+  }
+  if (playersScheduled() && timeline.worldClock < target) timeline.advanceClock(target - timeline.worldClock);
+
+  // Shared fog: union of every living player's FOV into each level's `visible`.
+  computeVisibilityUnion(world, [...players].filter((id) => world.state.entities.has(id)));
+
+  return { worldClock: timeline.worldClock, acted, idle: !playersScheduled() };
 }

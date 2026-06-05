@@ -298,6 +298,7 @@ export { stanceBetween } from './sim/factions';
 export type { FactionId } from './sim/factions';
 export {
   computeVisibility,
+  computeVisibilityUnion,
   isVisible,
   isExplored,
   VISIBLE_LAYER,
@@ -338,8 +339,15 @@ export type { Renderer } from './render/renderer';
 export { AsciiRenderer } from './render/ascii-renderer';
 export { CanvasRenderer } from './render/canvas-renderer';
 export type { Ctx2D, CanvasRendererOptions } from './render/canvas-renderer';
-export { takeTurn, step, tickRealtime } from './sim/driver';
-export type { TakeTurnOptions, TurnResult, TickRealtimeOptions, RealtimeResult } from './sim/driver';
+export { takeTurn, step, tickRealtime, tickRealtimeMulti } from './sim/driver';
+export type {
+  TakeTurnOptions,
+  TurnResult,
+  TickRealtimeOptions,
+  RealtimeResult,
+  TickRealtimeMultiOptions,
+  RealtimeMultiResult,
+} from './sim/driver';
 export { registerCoreTimerEffects } from './sim/effects';
 export type { TimerEffectRegistry } from './sim/effects';
 export { runReactions } from './sim/action';

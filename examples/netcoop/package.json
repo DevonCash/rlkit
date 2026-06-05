@@ -1,0 +1,19 @@
+{
+  "name": "rlkit-example-netcoop",
+  "private": true,
+  "type": "module",
+  "description": "Networked hidden-info co-op: an authoritative node WebSocket server (GameServer) ships each client only its own player's rendered frame.",
+  "scripts": {
+    "dev": "vite",
+    "server": "tsx server/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0",
+    "tsx": "^4.0.0",
+    "typescript": "^6.0.3",
+    "vite": "^7.0.0",
+    "ws": "^8.18.0"
+  }
+}

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>rlkit — networked hidden-info co-op</title>
+    <style>
+      body { background: #0a0a0c; color: #ccc; margin: 0; font-family: monospace; }
+      h1 { font-size: 14px; text-align: center; padding: 8px; margin: 0; color: #8ad; letter-spacing: 2px; }
+      canvas { display: block; margin: 6px auto; background: #000; image-rendering: pixelated; }
+      #status { text-align: center; color: #fe9; font-size: 13px; min-height: 18px; }
+      p { text-align: center; color: #777; font-size: 12px; line-height: 1.6; }
+    </style>
+  </head>
+  <body>
+    <h1>R L K I T &nbsp; — &nbsp; N E T W O R K E D &nbsp; H I D D E N - I N F O</h1>
+    <canvas id="game" width="896" height="480"></canvas>
+    <div id="status">connecting…</div>
+    <p>
+      Move with arrow keys or W A S D. Each browser tab is a separate player on one authoritative server.<br />
+      You receive only <b>your own</b> rendered view — other players and monsters are invisible unless in your line of sight.<br />
+      Open this page in a second tab to join as another player.
+    </p>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

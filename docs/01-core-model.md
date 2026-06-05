@@ -147,6 +147,8 @@ loop:
 
 (The `render` step is an event the presentation layer listens for, not a direct core→canvas call — keeping the headless boundary intact.)
 
+This is the turn-based driver (`takeTurn`/`step`). The same timeline backs two more drivers without changing the model (§25): `tickRealtime` advances a fixed number of logical ticks with **non-blocking** buffered input instead of awaiting a command, and `tickRealtimeMulti` does the same for a *set* of player actors plus AI — both pace off `timeline.peekNextDue()`/`advanceClock()`. Because the timeline already orders actors deterministically by id, real-time and co-op inherit determinism for free.
+
 ### 6.1 Entity query/index layer
 
 Systems and event dispatch need to find entities fast — "everything with `position` + `resources`," "every entity carrying the `AIHunter` mixin," "occupants of this cell." Scanning all entities per query is O(entities) and would dominate as content grows, so the `World` maintains indexes updated incrementally on component/mixin add/remove and on movement:

@@ -2,7 +2,7 @@
 
 The design spec for **rlkit**, a batteries-included TypeScript roguelike engine. The original single document was split into the focused files below; this index is the map. Content is verbatim — section numbers (`§N`) are preserved across files, so any `§N` cross-reference resolves via the lookup table at the bottom.
 
-Status: **design complete, pre-code (rev 9).** No source written yet; the first build step is milestone 1 in [10-roadmap-and-tests.md](./10-roadmap-and-tests.md).
+Status: **implemented (rev 10).** Every milestone in [10-roadmap-and-tests.md](./10-roadmap-and-tests.md) (§20) is built and green — 314 tests across 70 files — plus the post-spec extensions (opt-in modules, level transitions, look/info, the real-time driver, and co-op multiplayer) documented in [11-modules-realtime-multiplayer.md](./11-modules-realtime-multiplayer.md) (§23–25). The spec remains the source of truth: code is kept consistent with these docs, not the other way around.
 
 ## Reading order
 
@@ -19,8 +19,9 @@ For a first read, go top to bottom — the docs are ordered so each builds on th
 9. [08-persistence.md](./08-persistence.md) — save/load and validation.
 10. [09-reference.md](./09-reference.md) — module map, public API, tooling.
 11. [10-roadmap-and-tests.md](./10-roadmap-and-tests.md) — build order, decisions, test targets.
+12. [11-modules-realtime-multiplayer.md](./11-modules-realtime-multiplayer.md) — the post-spec extensions: opt-in modules, level transitions, look/info, real-time, and co-op multiplayer.
 
-If you are an agent picking this up to build it: read 00, 01, 02, then jump to **10** for the milestone order, and pull in the others as each milestone needs them.
+If you are an agent picking this up: read 00, 01, 02 for the model and spine, **10** for how it was built and what's tested, and **11** for the systems layered on after the original spec.
 
 ## The documents
 
@@ -37,10 +38,11 @@ If you are an agent picking this up to build it: read 00, 01, 02, then jump to *
 | [08-persistence](./08-persistence.md) | §16 | Serializing `WorldState` with devalue, reconstructing services, schema migration, Zod boundary validation (§16.4). | Save/load, content/save validation. |
 | [09-reference](./09-reference.md) | §17–19 | The `src/` module map, the public API sketch, build/test tooling (tsdown, Vitest+fast-check) and the runtime dependency surface. | Setting up the project, finding where a file should live. |
 | [10-roadmap-and-tests](./10-roadmap-and-tests.md) | §20–22 | The milestone **build order**, the resolved-**decisions** log, and the per-system **test targets**. | Deciding what to build next and what to test. |
+| [11-modules-realtime-multiplayer](./11-modules-realtime-multiplayer.md) | §23–25 | The **post-spec extensions**: the opt-in **module** system + the six base modules; level **transitions**, the **look/info** query; the **real-time** drivers and the authoritative co-op **GameServer** (shared + hidden-info fog). | Composing feature bundles, multi-level dungeons, real-time/multiplayer. |
 
 ## Section → document lookup
 
-`§1–4` → 00 · `§5–6` → 01 · `§7` → 02 · `§8` → 03 · `§9–10` → 04 · `§11` (incl. `§11.3`) → 05 · `§11A` → 06 · `§12–15` → 07 · `§16` → 08 · `§17–19` → 09 · `§20–22` → 10.
+`§1–4` → 00 · `§5–6` → 01 · `§7` → 02 · `§8` → 03 · `§9–10` → 04 · `§11` (incl. `§11.3`) → 05 · `§11A` → 06 · `§12–15` → 07 · `§16` → 08 · `§17–19` → 09 · `§20–22` → 10 · `§23–25` → 11.
 
 ## How the design got here (rev history)
 
@@ -53,3 +55,4 @@ The spec was built up over several passes; later revisions reflect deliberate de
 - **rev 7** — base-primitive refinements: typed Action/Event unions, entity query/index layer, reaction loop + two clocks, mutation-through-effects invariant; coordinates flipped to packed integers.
 - **rev 8** — elegance unifications: one `Registry<T>`, one timeline, one reactor model (onAction = pre-phase reactor), `World = state + services`, layered-grid Level.
 - **rev 9** — per-system test targets (§22).
+- **rev 10** — implementation landed all milestones, then grew past the original spec: opt-in **modules** (combat/progression/identification/ranged/hunger/doors), multi-level **transitions**, a **look/info** query, a command-dispatch registry, **real-time** drivers (`tickRealtime`/`tickRealtimeMulti`), and an authoritative co-op **GameServer** with shared and per-player (hidden-info) fog. Captured in [11-modules-realtime-multiplayer.md](./11-modules-realtime-multiplayer.md) (§23–25); determinism promoted from nice-to-have to a guaranteed, test-guarded property.

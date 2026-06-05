@@ -26,18 +26,20 @@ In scope:
 - Cross-cutting primitives (§11A): tags, factions/relationships, geometry/targeting, timers/delayed effects, tile/zone triggers, and dice + weighted-table content utilities.
 - FOV, pathfinding, AI steering (via rotJS adapters).
 - Field-based AI: goal (Dijkstra) maps, scent maps, and influence maps over one data-oriented store; flee/safety derivation, weighted desire-driven monster behavior, autoexplore/auto-travel/hazard-escape (§11.3).
-- Seeded RNG (determinism is *nice-to-have*, not guaranteed).
+- Seeded RNG with **guaranteed determinism** — all randomness flows through one seeded `RNG` (`pure-rand`) with `fork()` sub-streams and order-stable iteration; reproducibility is a tested invariant, not a hope (§22.13).
+- Multi-level **transitions** (descend/ascend, lazily-built linked levels) and a pure **look/examine** query (§24).
+- Opt-in **feature modules** layered on the core (combat crits, XP/progression, identification & curses, ranged, hunger, doors) — composed by name, recorded in the save manifest (§23).
 - Headless render state + a canvas glyph/tile renderer adapter.
-- Input mapping (key/pointer → command).
+- Input mapping (key/pointer → command) and a command-dispatch registry.
 - UI layer: message log, HUD, menu/modal stack.
+- **Real-time** play (fixed-timestep driver) and authoritative **co-op multiplayer** (shared-fog or per-player hidden-info), transport-agnostic with a networked WebSocket reference (§25).
 - Save/load serialization.
 
 Out of scope (for now):
 
-- A finished demo game (library only).
-- Network/multiplayer.
 - Audio.
 - A WebGL renderer (canvas2D first; renderer interface leaves room for it later).
+- Netcode beyond the reference transport: client-side prediction, frame deltas/compression, matchmaking.
 
 ---
 
@@ -74,5 +76,7 @@ Four layers, dependencies point downward only:
 ```
 
 The core model and game systems are pure TypeScript with no DOM or rotJS imports. Adapters are injected at construction time.
+
+Two later additions slot into this picture without bending the rule (§23, §25): the opt-in **modules** are pure *game systems* (headless rules composed by name, so they stay DOM/rotJS-free like the rest of that layer), and the co-op **`multiplayer/` server** is an *app layer* that sits **above** game systems and render — it may build per-player frames via `render/`, but nothing in the core depends on it.
 
 ---

@@ -65,7 +65,7 @@ Shipped generators:
 - **Drunkard's walk** — winding tunnels / sparse caverns.
 - **Prefab / vault stamping** — stamp hand-authored room templates (ASCII or JSON) with anchors and constraints; composes with the above.
 
-Generators are pure functions of `(params, rng)`, so a seed reproduces a map (supports the nice-to-have determinism). Generation **decorators** run as a post-pass: place stairs, distribute monsters/items from spawn tables (configurable content), connect disconnected regions, validate reachability.
+Generators are pure functions of `(params, rng)`, so a seed reproduces a map (part of the engine's guaranteed determinism). Generation **decorators** run as a post-pass: place stairs, distribute monsters/items from spawn tables (configurable content), connect disconnected regions, validate reachability.
 
 A `LevelBuilder` orchestrates: pick generator → run → decorate → register tiles → spawn entities. Multi-level dungeons are a list of `Level`s linked by stair entities.
 

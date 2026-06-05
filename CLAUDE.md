@@ -4,18 +4,17 @@ Instructions for working on **rlkit**, a batteries-included TypeScript roguelike
 
 ## Status & where to start
 
-Design is complete (rev 9); **no source code exists yet.** First two tasks, in order:
+**Implemented (spec rev 10).** All milestones in `docs/10-roadmap-and-tests.md` (§20) are built and green — **314 tests across 70 files**. The headless core, presentation stack, save/load, and the post-spec extensions (opt-in **modules**, level **transitions**, **look/info**, the **real-time** driver, and **co-op multiplayer**) all exist. `npm run build`, `npm test`, `npm run typecheck`, and `npm run lint` all pass.
 
-1. Scaffold the project per `docs/09-reference.md` (§19): TypeScript (strict, ESM), **tsdown** build, **Vitest + @fast-check/vitest** tests, the `src/` tree from the module map (§17), and the runtime deps below. Confirm `npm install`, `npm run build`, and `npm test` all work on an empty skeleton before writing logic.
-2. Begin **milestone 1** in `docs/10-roadmap-and-tests.md` (§20). Build the headless core first; it must stay green before any presentation code is wired.
+Before changing anything, read [`docs/INDEX.md`](./docs/INDEX.md) for the map. The spec is the source of truth: when code and spec disagree, fix the code, or — if the intent genuinely changed — update the relevant `docs/` file in the same change. New systems land with their test targets from §22.
 
-Follow the milestone order in §20 — it is dependency-sequenced. Each milestone lands with its test targets from §22.
+The four playable examples (each its own Vite/Node app) are the worked references: `examples/web` (single-player), `examples/depths` (full game using all six modules), `examples/coop` (in-process split-screen co-op), `examples/netcoop` (networked hidden-info co-op over WebSocket).
 
 ## Architecture rules (do not violate)
 
 These are the invariants the whole design depends on. Breaking one quietly breaks save/load, determinism, or testability.
 
-- **Headless core.** `core/`, `sim/`, `mapgen/`, and the field code must not import rendering, input, the DOM, or rotJS. rotJS is allowed **only** inside `adapters/` (FOV + pathfinding). The simulation emits state and events; presentation observes.
+- **Headless core.** `core/`, `sim/`, `mapgen/`, the field code, and the opt-in `modules/` (which are pure game rules) must not import rendering, input, the DOM, or rotJS. rotJS is allowed **only** inside `adapters/` (FOV + pathfinding). The simulation emits state and events; presentation observes. (`multiplayer/` is an **app layer** above sim+render — it may import `render/` to build per-player frames — not part of the headless core.)
 - **Mutation goes through effects only.** Effects are the sole writers of world state; everything upstream gets a `ReadonlyWorld`. Multi-effect actions **validate all, then apply** — never half-apply.
 - **Serialize by name, never closures.** State stores registry ids (mixin names, `effectId`, `testId`, component `type` tags), never functions. One generic `Registry<T>` backs this (§6.3).
 - **`World = state + services`.** Only `WorldState` serializes; `Services` are reconstructed from registries on load. Don't put non-serializable handles in state.

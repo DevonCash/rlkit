@@ -21,7 +21,16 @@
 10. **Remaining generators + decorators** — cellular, drunkard, prefab/vaults.
 11. **Triggers + zones (§11A.5)** — place-scoped reactors on `entity:entered`/`exited`, with zones promoted from mapgen regions. (Delayed effects already exist from the timeline in milestone 2.) Proof content: a trap (trigger → delayed effect) and a room-ambush zone. Save/load round-trip with pending timeline effects.
 
-Each milestone is independently testable against the headless core.
+The first eleven milestones land the engine the original spec described. The next six (12–17) are the **post-spec extensions** — each additive and backward-compatible (everything defaults to prior behavior, so the suite stays green). Full design in [11-modules-realtime-multiplayer.md](./11-modules-realtime-multiplayer.md) (§23–25).
+
+12. **Level transitions (§24)** — a `stairs` component, `descend`/`ascend` handlers, a single `transitionEffect` (the sole writer for level changes: relocate, re-index, swap timeline membership by level), and an optional `services.levelProvider` that lazily builds + links the destination level. Save/load round-trips a mid-descent world.
+13. **Look / info (§24)** — an `info` component (`name`/`description`), a pure `describeCell(world, levelId, cell)` query returning every entity on a tile topmost-first, and a message-log resolver hook so authored names flow into events.
+14. **Command-dispatch registry (§24)** — `CommandTable`/`CommandHandler`/`CommandCtx` in the Session, so a game maps commands → behavior (submit action, push modal, re-dispatch) without forking the loop.
+15. **Modules (§23)** — the `Module` interface + `orderModules`/`composeModules`/`assertModulesPresent` (topological by dependency, manifest recorded to `WorldState.modules`), wired into `createWorld`/`loadWorld`; then the six base modules (combat, progression, identification, ranged, hunger, doors). Each module is independently tested.
+16. **Real-time driver (§25)** — `tickRealtime` (single player) over the same timeline via `peekNextDue`/`advanceClock`, non-blocking buffered input, fixed logical timestep. Determinism preserved (two identical runs).
+17. **Co-op multiplayer (§25)** — `tickRealtimeMulti` (a set of players + AI), shared-union vs per-player FOV (`computeVisibilityUnion` / `computeVisibilityFor`, `visible:<id>`/`explored:<id>` layers), `buildFrame` parameterized by visibility layer, and the transport-agnostic `GameServer` (`join`/`enqueue`/`tick`/`viewFor`/`snapshot`) with `'shared'`/`'hidden'` fog. Networked reference: `examples/netcoop` (authoritative WebSocket host, per-player frames, headless wire round-trip).
+
+Each milestone is independently testable against the headless core (12–17 add their targets in §22.15).
 
 ---
 
@@ -32,13 +41,13 @@ All forks from the prior draft are now settled:
 1. **Coordinate keys** — *revised (rev 7):* packed integer `Cell = y*width+x` is canonical across the tile grid, spatial index, fields, and geometry; `Point {x,y}` is the API-edge form and an `"x,y"` string exists only for debug/logging. (Originally strings; reversed because the FieldStore, spatial index, and geometry primitives all require integer cells.)
 2. **Time units** — one shared "energy" unit for both the scheduler and status durations, with a `turns→energy` config helper for authoring convenience.
 3. **Bundler** — `tsdown` (fallback tsup).
-4. **Determinism** — rated nice-to-have, but *all* engine randomness is routed through a single seeded `RNG` (`pure-rand`) with `fork()` sub-streams, so full reproducibility is available for free. No `Math.random` anywhere.
+4. **Determinism** — *guaranteed.* *All* engine randomness is routed through a single seeded `RNG` (`pure-rand`) with `fork()` sub-streams and order-stable iteration, so full reproducibility holds end-to-end and is guarded by tests (the golden run, §22.13; same-seed properties throughout §22). No `Math.random` anywhere. (Originally rated nice-to-have; the single-RNG discipline made it free, so it was promoted to an invariant — real-time and multiplayer both depend on it.)
 5. **Mixin conflict resolution** — declaration order; an optional numeric priority can be added later without changing the model.
 6. **Validation** — committed to **Zod, schema-first** (§16.4): persisted/authored types are Zod schemas with `z.infer`'d static types (single source of truth); runtime-only types stay plain interfaces. No type is declared twice.
 
 ---
 
-*Spec is at rev 8 and internally consistent. Ready to start milestone 1 (core skeleton) on your go.*
+*Spec is at rev 10. All milestones (§20), including the post-spec extensions 12–17, are implemented and green — 314 tests across 70 files. The spec stays the source of truth; the code is kept consistent with it.*
 
 ---
 
@@ -141,5 +150,14 @@ Tags below: **[P]** property test · **[E]** example test · **[I]** integration
 
 - [E] `buildFrame` applies FOV visibility (visible / explored-dim / hidden) and correct layer order.
 - [E] input maps key → command → action; an open modal routes input to the top of the UI stack.
+
+### 22.15 Extensions — transitions, look, modules, real-time, multiplayer (§23–25)
+
+- [E] **Transitions**: `descend` relocates the actor to the linked level, re-indexes spatially, and swaps timeline membership (off-level actors frozen, on-level activated); an unlinked stair triggers `levelProvider` exactly once, then reuses the link. [P] `load(save(w))` round-trips a world mid-descent (pending timeline + per-level state intact).
+- [E] **Look / info**: `describeCell` lists every entity on a tile topmost-first with its authored `name`/`description`; it costs no time and mutates nothing; the message-log resolver substitutes authored names into events.
+- [E] **Command registry**: a custom `CommandTable` entry overrides a default; an item-default command falls through; `dispatch` re-entry routes correctly.
+- [E] **Modules**: `orderModules` topologically sorts by `dependencies` and throws on a cycle or a missing dep; `composeModules` runs `setup` in order and records the manifest in `WorldState.modules`; `assertModulesPresent` rejects a save whose required modules are absent. Each base module has its own behavior test (e.g. a crit applies the configured multiplier; XP crossing the threshold levels up and refills; an unidentified cursed ring can't be removed until uncursed; a ranged attack respects LoS/range; satiation reaching zero starts starvation damage; a closed door blocks movement and FOV until opened).
+- [P] **Real-time**: `tickRealtime` advances the world by N logical ticks without blocking; a buffered action is consumed on the player's due turn, otherwise it waits; two identical tick/input streams under one seed produce identical worlds (determinism preserved).
+- [E/P] **Multiplayer**: `tickRealtimeMulti` resolves every player's buffered action in deterministic timeline order; **hidden fog** — with a monster only player B can see, `GameServer.viewFor(a)`'s frame omits that glyph while `viewFor(b)`'s includes it (the wire leaks nothing); **shared fog** shows it to both; `hp`/`alive` track the player and flip on death; leaving a player drops its per-level `visible:<id>`/`explored:<id>` layers; [P] the same join/enqueue/tick stream yields identical worlds. The headless WebSocket round-trip ([`examples/netcoop`](../examples/netcoop)) asserts two clients receive distinct per-player frames over the wire and that malformed/oversized input is sanitized server-side.
 
 These targets map one-to-one onto the build milestones (§20): each milestone lands with the targets for the systems it introduces, so the headless core is always green before presentation is wired.

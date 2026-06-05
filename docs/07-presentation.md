@@ -36,10 +36,11 @@ interface RenderFrame {
   cells: Cell[];               // row-major, post-FOV (dimmed/hidden applied)
   overlays: Overlay[];         // cursors, targeting lines, effects
 }
-function buildFrame(world: World, viewport: Viewport, camera: Camera): RenderFrame;
+function buildFrame(world: World, viewport: Viewport, camera: Camera, opts?: BuildFrameOptions): RenderFrame;
+interface BuildFrameOptions { visibleLayer?: string; exploredLayer?: string; } // default: the shared 'visible'/'explored'
 ```
 
-FOV/visibility, layering (floor < items < actors), and "explored but not visible" dimming are resolved here as logic; the specific colors/dim factors are config.
+FOV/visibility, layering (floor < items < actors), and "explored but not visible" dimming are resolved here as logic; the specific colors/dim factors are config. The optional `visibleLayer`/`exploredLayer` select *which* visibility a frame is built against — passing `visibleLayerFor(playerId)`/`exploredLayerFor(playerId)` renders a single player's view, so an entity the viewer can't see is simply **absent** from the frame's cells. That makes the serialized `RenderFrame` the anti-cheat unit for hidden-info multiplayer (§25): a server can ship each client only its own `buildFrame` output and leak nothing.
 
 ### 13.2 Canvas adapter
 

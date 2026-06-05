@@ -14,7 +14,7 @@ import { get } from '../core/entity';
 import type { Renderable } from '../core/component';
 import type { Cell } from '../core/coords';
 import { tileAt, type Level } from '../core/level';
-import { isVisible, isExplored } from '../sim/visibility';
+import { VISIBLE_LAYER, EXPLORED_LAYER } from '../sim/visibility';
 import type { ReadonlyWorld } from '../core/world';
 import { cameraLevel, viewportOrigin, type Camera, type Viewport } from './camera';
 
@@ -67,7 +67,20 @@ function topRenderable(world: ReadonlyWorld, level: Level, cell: Cell): Renderab
   return best;
 }
 
-export function buildFrame(world: ReadonlyWorld, viewport: Viewport, camera: Camera): RenderFrame {
+/** Which visibility layers to render through — defaults to the shared ones. */
+export interface BuildFrameOptions {
+  /** Layer name for "currently visible" (default `VISIBLE_LAYER`). */
+  visibleLayer?: string;
+  /** Layer name for "explored memory" (default `EXPLORED_LAYER`). */
+  exploredLayer?: string;
+}
+
+export function buildFrame(
+  world: ReadonlyWorld,
+  viewport: Viewport,
+  camera: Camera,
+  opts: BuildFrameOptions = {},
+): RenderFrame {
   const cfg = world.services.config.render;
   const blank = (): FrameCell => ({ glyph: cfg.emptyGlyph, fg: cfg.defaultFg, bg: cfg.defaultBg });
 
@@ -77,6 +90,13 @@ export function buildFrame(world: ReadonlyWorld, viewport: Viewport, camera: Cam
     for (let i = 0; i < viewport.width * viewport.height; i++) cells.push(blank());
     return { width: viewport.width, height: viewport.height, cells, overlays: [] };
   }
+
+  // Read the chosen viewer's layers directly (per-player FOV when named), so a
+  // cell only shows its entities when THIS viewer sees it.
+  const visLayer = level.layers.get(opts.visibleLayer ?? VISIBLE_LAYER) as Uint8Array | undefined;
+  const expLayer = level.layers.get(opts.exploredLayer ?? EXPLORED_LAYER) as Uint8Array | undefined;
+  const seen = (c: Cell): boolean => visLayer?.[c] === 1;
+  const remembered = (c: Cell): boolean => expLayer?.[c] === 1;
 
   const palette = world.services.tiles;
   const origin = viewportOrigin(world, level, viewport, camera);
@@ -89,7 +109,7 @@ export function buildFrame(world: ReadonlyWorld, viewport: Viewport, camera: Cam
         continue;
       }
       const cell = ly * level.width + lx;
-      if (isVisible(level, cell)) {
+      if (seen(cell)) {
         const tile = tileAt(level, cell, palette);
         const top = topRenderable(world, level, cell);
         cells.push(
@@ -97,7 +117,7 @@ export function buildFrame(world: ReadonlyWorld, viewport: Viewport, camera: Cam
             ? { glyph: top.glyph, fg: top.fg, bg: top.bg ?? tile.bg ?? cfg.defaultBg }
             : { glyph: tile.glyph, fg: tile.fg, bg: tile.bg ?? cfg.defaultBg },
         );
-      } else if (isExplored(level, cell)) {
+      } else if (remembered(cell)) {
         const tile = tileAt(level, cell, palette);
         cells.push({
           glyph: tile.glyph,

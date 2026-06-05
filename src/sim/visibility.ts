@@ -28,11 +28,12 @@ function ensureU8(level: Level, name: string): Uint8Array {
   return layer;
 }
 
-/**
- * Recompute the viewer's FOV: clear `visible`, mark visible cells, and OR them
- * into `explored`. Returns the set of visible cells.
- */
-export function computeVisibility(world: World, viewerId: string, radius?: number): Set<Cell> {
+/** Per-viewer layer names: `visible:<id>` / `explored:<id>` (hidden-info). */
+export const visibleLayerFor = (viewerId: string): string => `${VISIBLE_LAYER}:${viewerId}`;
+export const exploredLayerFor = (viewerId: string): string => `${EXPLORED_LAYER}:${viewerId}`;
+
+/** Compute a viewer's FOV into named `visible`/`explored` layers. */
+function computeInto(world: World, viewerId: string, radius: number | undefined, visName: string, expName: string): Set<Cell> {
   const viewer = world.state.entities.get(viewerId);
   const pos = viewer && get<Position>(viewer, 'position');
   const level = pos && world.state.levels.get(pos.levelId);
@@ -43,8 +44,8 @@ export function computeVisibility(world: World, viewerId: string, radius?: numbe
   const transparent = (p: Point): boolean =>
     inBounds(p, level.width, level.height) && isTransparent(level, cellOf(p, level.width), palette);
 
-  const visibleLayer = ensureU8(level, VISIBLE_LAYER);
-  const exploredLayer = ensureU8(level, EXPLORED_LAYER);
+  const visibleLayer = ensureU8(level, visName);
+  const exploredLayer = ensureU8(level, expName);
   visibleLayer.fill(0);
 
   const visible = world.services.fov.compute({ x: pos.x, y: pos.y }, r, transparent, level.width);
@@ -53,6 +54,25 @@ export function computeVisibility(world: World, viewerId: string, radius?: numbe
     exploredLayer[cell] = 1;
   }
   return visible;
+}
+
+/**
+ * Recompute the viewer's FOV into the SHARED `visible`/`explored` layers
+ * (single-player / shared co-op fog). Clears `visible`, marks visible cells, and
+ * OR's them into `explored`. Returns the set of visible cells.
+ */
+export function computeVisibility(world: World, viewerId: string, radius?: number): Set<Cell> {
+  return computeInto(world, viewerId, radius, VISIBLE_LAYER, EXPLORED_LAYER);
+}
+
+/**
+ * Hidden-info: recompute the viewer's FOV into its OWN per-viewer layers
+ * (`visible:<id>` / `explored:<id>`), so each player keeps private visibility and
+ * persistent explored memory. Render that player with `buildFrame`'s
+ * `visibleLayer`/`exploredLayer` options; entities outside their FOV are hidden.
+ */
+export function computeVisibilityFor(world: World, viewerId: string, radius?: number): Set<Cell> {
+  return computeInto(world, viewerId, radius, visibleLayerFor(viewerId), exploredLayerFor(viewerId));
 }
 
 /**

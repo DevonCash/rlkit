@@ -299,6 +299,9 @@ export type { FactionId } from './sim/factions';
 export {
   computeVisibility,
   computeVisibilityUnion,
+  computeVisibilityFor,
+  visibleLayerFor,
+  exploredLayerFor,
   isVisible,
   isExplored,
   VISIBLE_LAYER,
@@ -332,7 +335,7 @@ export { autoexploreStep } from './sim/ai/autoexplore';
 
 // --- presentation: render frame + renderers + driver (§13, §6) -------------
 export { buildFrame } from './render/frame';
-export type { RenderFrame, FrameCell, Overlay } from './render/frame';
+export type { RenderFrame, FrameCell, Overlay, BuildFrameOptions } from './render/frame';
 export type { Camera, Viewport } from './render/camera';
 export { viewportOrigin, cameraLevel } from './render/camera';
 export type { Renderer } from './render/renderer';

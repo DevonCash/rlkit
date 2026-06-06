@@ -12,21 +12,12 @@ import { get } from '../core/entity';
 import type { Position } from '../core/component';
 import type { Cell, Point } from '../core/coords';
 import { cellOf, inBounds } from '../core/coords';
-import { isTransparent, type Level } from '../core/level';
+import { isTransparent, ensureU8Layer, type Level } from '../core/level';
 import type { World } from '../core/world';
 import { deriveStat } from './stats';
 
 export const VISIBLE_LAYER = 'visible';
 export const EXPLORED_LAYER = 'explored';
-
-function ensureU8(level: Level, name: string): Uint8Array {
-  let layer = level.layers.get(name);
-  if (!(layer instanceof Uint8Array) || layer.length !== level.width * level.height) {
-    layer = new Uint8Array(level.width * level.height);
-    level.layers.set(name, layer);
-  }
-  return layer;
-}
 
 /** Per-viewer layer names: `visible:<id>` / `explored:<id>` (hidden-info). */
 export const visibleLayerFor = (viewerId: string): string => `${VISIBLE_LAYER}:${viewerId}`;
@@ -44,8 +35,8 @@ function computeInto(world: World, viewerId: string, radius: number | undefined,
   const transparent = (p: Point): boolean =>
     inBounds(p, level.width, level.height) && isTransparent(level, cellOf(p, level.width), palette);
 
-  const visibleLayer = ensureU8(level, visName);
-  const exploredLayer = ensureU8(level, expName);
+  const visibleLayer = ensureU8Layer(level, visName);
+  const exploredLayer = ensureU8Layer(level, expName);
   visibleLayer.fill(0);
 
   const visible = world.services.fov.compute({ x: pos.x, y: pos.y }, r, transparent, level.width);
@@ -97,8 +88,8 @@ export function computeVisibilityUnion(world: World, viewerIds: readonly string[
   for (const [levelId, ids] of byLevel) {
     const level = world.state.levels.get(levelId);
     if (!level) continue;
-    const visibleLayer = ensureU8(level, VISIBLE_LAYER);
-    const exploredLayer = ensureU8(level, EXPLORED_LAYER);
+    const visibleLayer = ensureU8Layer(level, VISIBLE_LAYER);
+    const exploredLayer = ensureU8Layer(level, EXPLORED_LAYER);
     visibleLayer.fill(0);
     const transparent = (p: Point): boolean =>
       inBounds(p, level.width, level.height) && isTransparent(level, cellOf(p, level.width), palette);
@@ -115,6 +106,22 @@ export function computeVisibilityUnion(world: World, viewerIds: readonly string[
 
 export function isVisible(level: Level, cell: Cell): boolean {
   return (level.layers.get(VISIBLE_LAYER) as Uint8Array | undefined)?.[cell] === 1;
+}
+
+/**
+ * Per-viewer visibility predicate (§6.5): does `viewerId` currently see `cell`?
+ * Reads the viewer's own `visible:<id>` layer on its current level — populated in
+ * hidden-fog mode (`computeVisibilityFor`). A transport uses this to decide which
+ * tick events a player perceives (visual/line-of-sight); hearing is distance-based
+ * and stays game-side. Ghost / all-seeing composes game-side (return true anyway).
+ * False when the viewer has no position/level or no per-viewer layer yet.
+ */
+export function canViewerSee(world: World, viewerId: string, cell: Cell): boolean {
+  const viewer = world.state.entities.get(viewerId);
+  const pos = viewer && get<Position>(viewer, 'position');
+  const level = pos && world.state.levels.get(pos.levelId);
+  if (!level) return false;
+  return (level.layers.get(visibleLayerFor(viewerId)) as Uint8Array | undefined)?.[cell] === 1;
 }
 
 export function isExplored(level: Level, cell: Cell): boolean {

@@ -17,11 +17,41 @@ interface TileType {
   transparent: boolean;       // for FOV
   glyph: string; fg: string; bg?: string;
   tags?: string[];            // 'liquid', 'hazard'
+  flags?: string[];           // extra registered flags: 'airtight', 'wire', ...
 }
 
 type Cell = number;            // canonical cell id within a level: y*width + x
 interface Point { x: number; y: number; }   // ergonomic form for APIs; convert via cellOf/pointOf
 ```
+
+**Tile flags (a registry, not hardcoded booleans).** Boolean per-cell properties
+are a generic, game-extensible channel rather than fixed `TileType` fields. A
+`FlagRegistry` (in `Services.flags`) assigns each flag name a bit, exactly as the
+`TilePalette` assigns tiles an index; `walkable` and `transparent` are the two
+**core flags** (bits 0,1 — the lingua franca the FOV/pathfinding adapters and the
+field passable/transparent closures depend on), and games register more
+(`airtight`, `wire`, `pipe`, …) before registering the tiles that use them. The
+palette folds a tile's `walkable`/`transparent` booleans plus its named `flags`
+into a precomputed bitmask, so `isWalkable`/`isTransparent` stay O(1) bit-tests.
+
+A flag is composed from the tile **and** occupying entities: an entity carrying a
+`tileFlags: { flags: string[] }` component contributes its bits at its cell. The
+per-level `FlagIndex` (`Services.flagIndex`, `forLevel(id)`) maintains a Uint16
+`flags` layer = `palette.flagBits(tile) | OR(occupant bits)`, rebuilt on creation
+and kept current incrementally off `tile:changed` + movement events; when a cell's
+mask shifts it emits `flags:changed { levelId, cell, before, after }`. Games that
+mutate a flag component in place (e.g. an entity-door toggling `airtight`) call
+`flagIndex.forLevel(id).invalidateCell(cell)`. The `flags` layer is a derived cache
+(transient — §16). Up to 16 flags (Uint16).
+
+**Tile mutation is an effect.** `setTileEffect(levelId, cell, toTileId)` swaps a
+tile through the normal validate-then-apply pipeline and emits
+`tile:changed { levelId, cell, from, to }` (palette indices), which the standard
+invalidation consumers honor: a field with `invalidateOn: ['tile:changed']`
+re-routes on its next read, the flag index recomputes the cell, and FOV — recomputed
+each turn from live tiles — sees through it the same turn. Shared layer-lifecycle
+helpers `ensureFloatLayer` / `ensureU8Layer` / `ensureU16Layer` get-or-create a
+full-grid typed-array layer (used by fields, visibility, the flag index, steppers).
 
 A level is a **layered grid**: a stack of typed per-cell layers over one shared `Cell` index space and neighbor math. Tiles are just one layer; AI fields (§11.3) are `Float32` layers in the same system; transient booleans (explored, blocked) are bitset layers. This unifies Level storage with the FieldStore — same indices, same offset tables, one place that knows the grid geometry.
 

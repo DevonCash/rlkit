@@ -17,7 +17,41 @@
  */
 import { stringify, parse } from 'devalue';
 import type { WorldState } from '../core/world';
+import type { Layer, Level } from '../core/level';
 import type { SaveBlob } from '../content/validate';
+
+// --- transient (derived) layers --------------------------------------------
+//
+// Some level layers are rebuildable caches, not authoritative state, so they are
+// skipped on encode and reconstructed by their services on load. The persistence
+// policy lives here (the codec owns it); the names mirror the conventions in
+// `sim/visibility.ts` (`visible`/`visible:<id>`), `sim/field.ts`
+// (`field:<id>`), and `sim/flags.ts` (`flags`). `explored`/`explored:<id>`
+// (player memory), `tiles`, and game-authoritative sim layers (e.g. `pressure`)
+// are NOT transient and persist.
+function isTransientLayer(name: string): boolean {
+  return (
+    name === 'visible' ||
+    name === 'flags' ||
+    name.startsWith('visible:') ||
+    name.startsWith('field:')
+  );
+}
+
+/** A shallow copy of `state` whose levels drop transient layers (original untouched). */
+function withoutTransientLayers(state: WorldState): WorldState {
+  const levels = new Map<string, Level>();
+  for (const [id, level] of state.levels) {
+    let stripped: Map<string, Layer> | undefined;
+    for (const name of level.layers.keys()) {
+      if (!isTransientLayer(name)) continue;
+      if (!stripped) stripped = new Map(level.layers);
+      stripped.delete(name);
+    }
+    levels.set(id, stripped ? { ...level, layers: stripped } : level);
+  }
+  return { ...state, levels };
+}
 
 // --- base64 over raw bytes (no DOM atob/btoa, no Node Buffer) ---------------
 
@@ -86,7 +120,7 @@ const revivers: Record<string, (v: unknown) => unknown> = {
 
 /** Encode a `WorldState` snapshot to a string (devalue + typed-array base64). */
 export function encodeState(state: WorldState): string {
-  return stringify(state, reducers);
+  return stringify(withoutTransientLayers(state), reducers);
 }
 
 /** Decode a snapshot string to a raw value (validated downstream by `parseSave`). */

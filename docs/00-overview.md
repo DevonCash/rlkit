@@ -79,4 +79,6 @@ The core model and game systems are pure TypeScript with no DOM or rotJS imports
 
 Two later additions slot into this picture without bending the rule (§23, §25): the opt-in **modules** are pure *game systems* (headless rules composed by name, so they stay DOM/rotJS-free like the rest of that layer), and the co-op **`multiplayer/` server** is an *app layer* that sits **above** game systems and render — it may build per-player frames via `render/`, but nothing in the core depends on it.
 
+**Primitive vs. packaged mechanic.** The dividing line within the headless layers: the engine ships *primitives* a developer builds **with** — the entity/effect/event spine, the timeline, typed-array **layers** + the tile-**flag** registry, **steppers** (per-world-tick bulk updates), **fields** and **cell-network** connectivity, the FOV/pathfinding adapters, and the bump-interaction dispatch — and gameplay is *packaged mechanics* built **on** them. Combat, doors, hunger, ranged, etc. are already opt-in modules; the AI/field *batteries* (goal/scent/influence producers, `DesireAI`, autoexplore) are the same category and are being moved behind that line too. So "airtight", "wire-power", "atmosphere diffusion", and "bump-to-open" are game mechanics expressed through registered flags, network indexes, steppers, and bump rules — never engine-privileged channels.
+
 ---

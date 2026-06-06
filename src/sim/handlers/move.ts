@@ -19,11 +19,11 @@ import { get, set } from '../../core/entity';
 import type { EntityId } from '../../core/entity';
 import { cellOf, type Cell } from '../../core/coords';
 import type { Position } from '../../core/component';
-import type { ActionContext, Effect } from '../../core/action';
+import type { Action, ActionContext, Effect } from '../../core/action';
 import type { GameEvent } from '../../core/events';
 import { isWalkable, type Level } from '../../core/level';
 import type { ReadonlyWorld } from '../../core/world';
-import { stanceBetween } from '../factions';
+import { BLOCK } from '../../core/bump';
 
 /** Build an effect that relocates `actorId` to `(toX,toY)` on its current level. */
 export function makeMoveEffect(actorId: EntityId, toX: number, toY: number): Effect {
@@ -67,7 +67,7 @@ function announceEffect(event: GameEvent): Effect {
 type MoveOutcome =
   | { kind: 'relocate'; toX: number; toY: number }
   | { kind: 'swap'; toX: number; toY: number; other: EntityId }
-  | { kind: 'attack'; target: EntityId; cell: Cell }
+  | { kind: 'interact'; action: Action; target: EntityId; cell: Cell }
   | { kind: 'blocked' }
   | { kind: 'bumpWall'; cell: Cell };
 
@@ -83,15 +83,18 @@ function classify(ctx: ActionContext, level: Level, toX: number, toY: number): M
     // Walk-over occupants (floor items, stairs) never block — keep scanning for
     // a real obstacle (a creature) sharing the cell, else fall through to relocate.
     if (passable.some((t) => other.components.has(t))) continue;
+    // Swap is a movement primitive checked before the interaction channel.
     if (other.mixins.includes('swappable')) return { kind: 'swap', toX, toY, other: id };
-    if (ctx.world.services.registries.handlers?.has('attack')) {
-      // Bumping a creature attacks it — but never an ALLY (no friendly fire).
-      // Hostiles and neutrals are attackable on bump (the roguelike default);
-      // an ally blocks instead. Make an NPC `swappable` to walk through it.
-      const actor = ctx.world.state.entities.get(ctx.action.actor);
-      if (actor && stanceBetween(ctx.world, actor, other) === 'allied') return { kind: 'blocked' };
-      return { kind: 'attack', target: id, cell };
-    }
+    // What does bumping this occupant mean? Ask the bump-interaction registry
+    // (R7) — the default rule attacks a non-ally; games shadow it (doors/lockers)
+    // or suppress it. An Action → redirect to it; `'block'`/no claim → blocked.
+    const resolved = ctx.world.services.bumpInteractions.resolve({
+      world: ctx.world,
+      actor: ctx.action.actor,
+      target: id,
+      cell,
+    });
+    if (resolved !== undefined && resolved !== BLOCK) return { kind: 'interact', action: resolved, target: id, cell };
     return { kind: 'blocked' };
   }
 
@@ -135,11 +138,10 @@ export function moveHandler(ctx: ActionContext): void {
       ctx.push(makeMoveEffect(action.actor, x, y));
       ctx.push(makeMoveEffect(other, pos.x, pos.y));
     })
-    .with({ kind: 'attack' }, ({ target, cell }) => {
-      // A bump: announce it, then re-dispatch as an attack so reactors fire.
-      ctx.redirect({ type: 'attack', actor: action.actor, target }, [
-        { type: 'bumped', entity: action.actor, cell, target },
-      ]);
+    .with({ kind: 'interact' }, ({ action: interaction, target, cell }) => {
+      // A bump: announce it, then re-dispatch as the resolved interaction (attack,
+      // open, …) so it becomes the actor's action and its reactors fire.
+      ctx.redirect(interaction, [{ type: 'bumped', entity: action.actor, cell, target }]);
     })
     .with({ kind: 'bumpWall' }, ({ cell }) => {
       // Bumping a wall is free (no turn spent) but observable.

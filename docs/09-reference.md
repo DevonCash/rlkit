@@ -16,7 +16,11 @@ src/
     mixin.ts           # Mixin interface (onAction/onEvent/modifyStats/takeTurn) + registry + resolution
     fov.ts             # FovProvider interface (rotJS impl injected from adapters/) — §11.1
     path.ts            # PathProvider interface (rotJS impl injected from adapters/) — §11.1
-    fields.ts          # Field abstraction types + FieldStore/FieldManager interfaces (impl in sim/ai) — §11.3
+    fields.ts          # Field abstraction types + FieldStore/FieldManager interfaces (impl in sim/field.ts) — §11.3
+    flags.ts           # FlagRegistry (name→bit) + FlagIndex/FlagManager interfaces (composed flags layer) — §8.1
+    graph.ts           # pure grid kernels: reachable() + labelComponents() (min-cell reps) — §8.1
+    bump.ts            # BumpInteraction registry (bump→action dispatch) — §7.2
+    tile-effect.ts     # setTileEffect (tile swap + tile:changed) — §8.1
     world.ts           # World = { state, services }; ReadonlyWorld view; fork() seam; TimelineState + Timeline interface (peekNextDue/advanceClock); LevelProvider/LevelLink seam (§24)
     module.ts          # Module interface + orderModules/composeModules/assertModulesPresent (§23)
     registry.ts        # generic Registry<T> + Registries bag (§6.3)
@@ -47,8 +51,12 @@ src/
     factions.ts        # Allegiance + faction table + stanceBetween
     triggers.ts        # zones + place-scoped reactors (cell/zone triggers); delayed effects via timeline
     items.ts           # inventory/equipment helpers
-    ai/                # ai mixins + steering helpers
-      field.ts         # Field types, FieldStore (SoA grids, composites, bestStep)
+    field.ts           # FieldStore/FieldManager impl (SoA grids, composites, bestStep) — a general primitive (§11.3)
+    flags.ts           # FlagIndex impl: maintained composed `flags` layer + flags:changed/invalidateCell (§8.1)
+    stepper.ts         # registerStepper — per-world-tick bulk step over a named layer (§7.5)
+    network.ts         # createNetworkManager — cell-network connectivity (flag/layer-backed) (§6, R3)
+    bump.ts            # attackBumpInteraction — the default bump→attack rule (§7.2)
+    ai/                # the bundled AI *mechanic* (to become an opt-in module — §11.3)
       producers/       # goal (BFS + flee), scent (decay/diffuse), influence (falloff)
       desire-ai.ts     # DesireAI mixin (weighted desires over fields)
       autoexplore.ts   # autoexplore / auto-travel / hazard-escape utilities

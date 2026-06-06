@@ -5,7 +5,8 @@ import { makeRng } from '../../src/adapters/rng';
 import { createTimeline } from '../../src/sim/timeline';
 import { makeRotFov } from '../../src/adapters/rot-fov';
 import { makeRotPath } from '../../src/adapters/rot-path';
-import { createFieldManager } from '../../src/sim/ai/field';
+import { createFieldManager } from '../../src/sim/field';
+import { createFlagManager } from '../../src/sim/flags';
 
 const base = {
   config: defaultConfig,
@@ -13,6 +14,7 @@ const base = {
   fov: makeRotFov(),
   path: makeRotPath(),
   makeFields: createFieldManager,
+  makeFlagIndex: createFlagManager,
 };
 
 describe('createWorld', () => {

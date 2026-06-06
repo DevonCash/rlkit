@@ -21,18 +21,18 @@ import type {
   FieldProducer,
   FieldId,
   DesireProfile,
-} from '../../core/fields';
-import { get } from '../../core/entity';
-import type { Allegiance, Stance } from '../../core/component';
-import type { Position } from '../../core/component';
-import type { Cell } from '../../core/coords';
-import { cellOf, neighbors4, neighbors8 } from '../../core/coords';
-import { isWalkable, isTransparent, type Level } from '../../core/level';
-import { EXPLORED_LAYER } from '../visibility';
-import type { World } from '../../core/world';
-import { goalProducer } from './producers/goal';
-import { scentProducer } from './producers/scent';
-import { influenceProducer } from './producers/influence';
+} from '../core/fields';
+import { get } from '../core/entity';
+import type { Allegiance, Stance } from '../core/component';
+import type { Position } from '../core/component';
+import type { Cell } from '../core/coords';
+import { cellOf, neighbors4, neighbors8 } from '../core/coords';
+import { isWalkable, isTransparent, ensureFloatLayer, type Level } from '../core/level';
+import { EXPLORED_LAYER } from './visibility';
+import type { World } from '../core/world';
+import { goalProducer } from './ai/producers/goal';
+import { scentProducer } from './ai/producers/scent';
+import { influenceProducer } from './ai/producers/influence';
 
 /** Goal/source cells for a field, resolved against the world (serialize-by-name). */
 export type GoalSource =
@@ -51,15 +51,6 @@ const PRODUCERS: Partial<Record<FieldKind, FieldProducer>> = {
 /** Register a producer for a field kind (scent/influence wired in group 6). */
 export function registerFieldProducer(kind: FieldKind, producer: FieldProducer): void {
   PRODUCERS[kind] = producer;
-}
-
-function ensureF32(level: Level, name: string, n: number): Float32Array {
-  let layer = level.layers.get(name);
-  if (!(layer instanceof Float32Array) || layer.length !== n) {
-    layer = new Float32Array(n);
-    level.layers.set(name, layer);
-  }
-  return layer;
 }
 
 function resolveSource(source: GoalSource | undefined, world: World, level: Level): Cell[] {
@@ -100,7 +91,7 @@ function createFieldStore(world: World, level: Level): FieldStore {
   const unsubs: Array<() => void> = [];
   let scratch: Float32Array | undefined;
 
-  const layerOf = (id: FieldId): Float32Array => ensureF32(level, FIELD_LAYER_PREFIX + id, n);
+  const layerOf = (id: FieldId): Float32Array => ensureFloatLayer(level, FIELD_LAYER_PREFIX + id);
   const bump = (id: FieldId): void => {
     versions.set(id, (versions.get(id) ?? 0) + 1);
   };
@@ -137,7 +128,7 @@ function createFieldStore(world: World, level: Level): FieldStore {
       if (descs.has(desc.id)) return;
       descs.set(desc.id, desc);
       versions.set(desc.id, 0);
-      ensureF32(level, FIELD_LAYER_PREFIX + desc.id, n);
+      ensureFloatLayer(level, FIELD_LAYER_PREFIX + desc.id);
       for (const ev of desc.invalidateOn ?? []) {
         unsubs.push(world.services.bus.on(ev, () => dirty.add(desc.id)));
       }

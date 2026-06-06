@@ -24,14 +24,37 @@ export type GameEvent =
   | { type: 'died'; entity: EntityId }
   | { type: 'resource:overflow'; entity: EntityId; resourceId: string; excess: number; cause: string }
   | { type: 'resource:underflow'; entity: EntityId; resourceId: string; deficit: number; cause: string }
-  // Content extends this union via declaration-merged EventMap in later work.
+  | { type: 'tile:changed'; levelId: string; cell: Cell; from: number; to: number }
+  | { type: 'flags:changed'; levelId: string; cell: Cell; before: number; after: number }
+  // Content extends this union via the declaration-merged `EventMap` (§7.2),
+  // or via the untyped open tail below.
+  | EventMap[keyof EventMap]
   | { type: string; [key: string]: unknown };
+
+/**
+ * Declaration-merge seam for events, mirroring `ActionMap`:
+ *
+ *   declare module 'rlkit' {
+ *     interface EventMap { 'door:denied': { type: 'door:denied'; cell: Cell } }
+ *   }
+ *
+ * Empty by default → `EventMap[keyof EventMap]` is `never` (a no-op).
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface EventMap {}
 
 export type EventListener = (ev: GameEvent) => void;
 
 export interface EventBus {
   /** Subscribe to a `type`; returns an unsubscribe function. */
   on(type: string, fn: EventListener): () => void;
+  /**
+   * Subscribe to EVERY event, in emission (FIFO/cascade) order; returns an
+   * unsubscribe. A transport taps this to collect the per-tick event stream
+   * (§6.5); each event is delivered to the wildcard exactly once, after its
+   * type listeners.
+   */
+  onAny(fn: EventListener): () => void;
   /** Publish an event to its subscribers. */
   emit(ev: GameEvent): void;
 }
@@ -42,6 +65,7 @@ export interface EventBus {
  */
 export function createEventBus(): EventBus {
   const listeners = new Map<string, EventListener[]>();
+  const anyListeners: EventListener[] = [];
   return {
     on(type, fn) {
       let arr = listeners.get(type);
@@ -57,11 +81,18 @@ export function createEventBus(): EventBus {
         if (i >= 0) a.splice(i, 1);
       };
     },
+    onAny(fn) {
+      anyListeners.push(fn);
+      return () => {
+        const i = anyListeners.indexOf(fn);
+        if (i >= 0) anyListeners.splice(i, 1);
+      };
+    },
     emit(ev) {
+      // Iterate copies so a handler that (un)subscribes doesn't shift the pass.
       const arr = listeners.get(ev.type);
-      if (!arr) return;
-      // Iterate a copy so a handler that (un)subscribes doesn't shift the pass.
-      for (const fn of arr.slice()) fn(ev);
+      if (arr) for (const fn of arr.slice()) fn(ev);
+      if (anyListeners.length > 0) for (const fn of anyListeners.slice()) fn(ev);
     },
   };
 }

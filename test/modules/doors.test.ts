@@ -43,4 +43,14 @@ describe('doorsModule', () => {
     perform(w, { type: 'move', actor: 'hero', dir: { x: 0, y: -1 } });
     expect({ x: at(hero).x, y: at(hero).y }).toEqual({ x: 2, y: 1 }); // now walks through
   });
+
+  it('opening a door emits both door:opened and tile:changed (R2 seam)', () => {
+    const { w } = setup();
+    const types: string[] = [];
+    w.services.bus.on('door:opened', () => types.push('door:opened'));
+    w.services.bus.on('tile:changed', () => types.push('tile:changed'));
+    perform(w, { type: 'move', actor: 'hero', dir: { x: 0, y: -1 } });
+    expect(types).toContain('door:opened');
+    expect(types).toContain('tile:changed');
+  });
 });

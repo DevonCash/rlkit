@@ -73,7 +73,7 @@ type ActionOutcome =
   | { status: 'fizzled';  cost: number; reason: string; events: GameEvent[] };
 ```
 
-Content extends the unions through a registered `ActionMap`/`EventMap` (declaration-merged); engine-internal match sites stay exhaustive over the core variants and fall through to a catch-all for content types.
+Content extends the unions through the declaration-merged `ActionMap`/`EventMap` interfaces (exported from the package entry): an external consumer writes `declare module 'rlkit' { interface ActionMap { useOn: { type: 'useOn'; actor: EntityId; … } } }` and the typed variant joins the `Action` union with no `any` and no engine patch (empty by default → `ActionMap[keyof ActionMap]` is `never`, a no-op). Engine-internal match sites stay exhaustive over the core variants and fall through to a catch-all for content types; the open-tail `{ type: string; … }` remains for untyped content. The dispatch is registry-keyed, so an unknown action type rejects (never throws).
 
 `resolve(action)` pipeline:
 
@@ -116,8 +116,31 @@ The timeline exposes both clocks; delayed effects (§11A.4) are keyed to the wor
 
 ### 7.4 Built-in action handlers
 
-`move` (the single movement intent — the handler dispatches by what's at the target cell: **relocate** onto empty floor, **swap** with a `swappable` occupant, **redirect to `attack`** against a hostile occupant, or **bump** a wall), `attack`, `pickup`, `drop`, `equip`/`unequip`, `useItem`, `throwItem`, `wait`, `descend`/`ascend`, `openClose`. Each is registered and overridable.
+`move` (the single movement intent — the handler dispatches by what's at the target cell: **relocate** onto empty floor, **swap** with a `swappable` occupant, **redirect to a resolved interaction** against an occupant, or **bump** a wall), `attack`, `pickup`, `drop`, `equip`/`unequip`, `useItem`, `throwItem`, `wait`, `descend`/`ascend`, `openClose`. Each is registered and overridable.
 
-A blocked move emits a **`bumped`** event (the bumper, the bumped `cell`, and the `target` occupant if any). Walking into a wall is a *free* bump: it emits `bumped` with no `target`, costs 0 energy, and doesn't relocate the actor (so the player simply re-prompts). Walking into a creature redirects to `attack` (prepending `bumped(target)` to the attack's events) **unless it is an ally** — an `allied` stance blocks instead (no friendly fire); hostiles and neutrals are attackable on bump. A swap is `moved`-only (no bump). Moving off the map is rejected (no tile to bump). There is no separate `bump` action — "bump" is the *outcome of an interrupted move*.
+A blocked move emits a **`bumped`** event (the bumper, the bumped `cell`, and the `target` occupant if any). Walking into a wall is a *free* bump: it emits `bumped` with no `target`, costs 0 energy, and doesn't relocate the actor. A swap is `moved`-only (no bump). Moving off the map is rejected. There is no separate `bump` action — "bump" is the *outcome of an interrupted move*.
+
+**Bump-interaction dispatch.** What a bump into a non-swappable occupant *means* is not hardcoded: the move handler asks `Services.bumpInteractions` (a registry of `{ priority, claim(ctx) → Action | 'block' | undefined }` rules) and **redirects** to the winning `Action` — so the interaction becomes the actor's action and inherits its cost (a post-`bumped` reactor couldn't, since the reaction loop doesn't reschedule actors). Rules are tried high-to-low priority, registration order as the tiebreak; first non-`undefined` wins (`'block'` claims a no-op block, suppressing lower rules; no claim → blocked). The engine ships ONE default rule (priority 0): a non-allied occupant is attacked (`bumped(target)` prepended), an ally blocks. A game shadows it with higher-priority rules (door → open, locker → loot) or suppresses it (`'block'`) for intent-based combat. `swap` precedes the channel.
+
+### 7.5 Steppers & the event-stream tap
+
+**Steppers** are the sanctioned per-world-tick bulk-simulation slot.
+`registerStepper(world, { id, layer, cadence, step })` runs `step(world, level, data)`
+— a whole-grid update over a named `Float32` layer — every `cadence` world-ticks, as
+a single coarse step inside the effect→event pipeline, and may emit events from its
+`step`. It is a thin layer over the timeline's recurring **timer-effects**
+(serialize-by-name, deterministically ordered against actors and other timers:
+effects-before-actors at a tie, then by `seq`). The engine owns the slot, cadence,
+ordering, and layer lifecycle; the math is *game* logic (e.g. conservative
+atmosphere diffusion reading the composed `flags` layer's airtight bit). Save/load:
+the timer round-trips by `effectId`, but its function does not serialize, so the game
+**re-calls `registerStepper` after load** (like `levelProvider`/`makeFields`); the
+bootstrap is idempotent (it won't double-schedule). Per-turn AI **field** stepping
+(`FieldStore.tick`) is itself a *mechanic's* use of this slot, not a core privilege
+(§11.3) — the engine does not auto-drive it.
+
+The event bus exposes **`onAny(fn)`** — a wildcard that observes every event once,
+in FIFO/cascade emission order, after its type listeners. A transport taps it to
+collect the ordered per-tick event stream (§6.5).
 
 ---

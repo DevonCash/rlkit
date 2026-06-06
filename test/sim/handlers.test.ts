@@ -80,9 +80,9 @@ describe('move handler — dispatch (relocate/swap/attack/bump)', () => {
   });
 
   it('redirects to attack against a non-swappable occupant (rejected when it has no hp)', () => {
-    // The engine ships an 'attack' handler, so moving into an occupant becomes
-    // an attack. A target with no hp pool can't be damaged → the attack's
-    // effect fails validation → rejected, and the hero does not move.
+    // The default bump-interaction (R7) redirects a bump into a non-ally to an
+    // attack. A target with no hp pool can't be damaged → the attack's effect
+    // fails validation → rejected, and the hero does not move.
     const w = makeWorld();
     w.state.levels.set('L', makeLevel('L', 6, 6));
     spawnAt(w, 'hero', 'L', 1, 1);

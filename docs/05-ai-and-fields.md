@@ -84,6 +84,18 @@ Fields largely supersede the rotJS `PathProvider` for *monster* navigation (down
 
 #### 11.3.4 Storage & querying — the data-oriented `FieldStore`
 
+> **Primitive vs. mechanic.** The field **engine** — the `FieldStore`/`FieldManager`
+> (per-level scalar layers, pluggable producers, composite caching, `bestStep`) — is
+> a general spatial *primitive*; its impl lives at `sim/field.ts`. The goal/scent/
+> influence **producers**, the `DesireAI` mixin, and autoexplore are the bundled AI
+> *mechanic* (under `sim/ai/`), the same category as combat/doors — slated to become
+> an opt-in `ai` module that registers its producers and drives its per-turn fields
+> via `registerStepper` (§7.5). The engine does not auto-drive `FieldStore.tick`.
+> The same field-manager shape backs the **cell-network connectivity** primitive
+> (`sim/network.ts`, §6/R3): `createNetworkManager(world).forLevel(id)` answers
+> `networkOf`/`sameNetwork` over a flag-backed (or raw-layer) membership, with
+> component ids = the min member cell (state-derived, stable across save/load).
+
 The hot path is `DesireAI`: per turn, every AI actor sums weighted field values over up to 9 candidate cells. Naively (one object per field, scattered `Float64Array`s, `"x,y"` lookups) that is `actors × 9 × desires` cache-missing reads. The store is built to collapse that.
 
 **Structure-of-arrays, one typed array per field.** Each field is a flat `Float32Array` of length `width*height`, indexed `i = y*width + x` — i.e. a `Float32` **layer** in the Level's layered grid (§8.1), so fields, tiles, and flags all share the same `Cell` space, offset tables, and geometry code. Float32 halves bandwidth versus Float64 and is ample precision for distances/scent (and avoids mixing integer/float types when composing). Fields get a stable integer index in the store. Neighbors are pure index arithmetic via a precomputed offset table (`i±1`, `i±width`, `i±width±1`, with row-edge guards) — these are the canonical packed-integer cell ids (§8.1); no coordinate strings appear in this loop.

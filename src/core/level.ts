@@ -22,6 +22,13 @@ export interface TileType {
   fg: string;
   bg?: string;
   tags?: string[]; // 'liquid', 'hazard'
+  /**
+   * Extra tile flags beyond `walkable`/`transparent` (the two core flags), e.g.
+   * `airtight`, `wire`. Each must be registered in the `FlagRegistry` before the
+   * tile is registered; the palette folds them into the tile's flag bitmask
+   * (§8.1).
+   */
+  flags?: string[];
 }
 
 /** A grid layer: tiles (Uint16 → tile palette), fields (Float32), flags (Uint8). */
@@ -75,14 +82,53 @@ export function setTile(level: Level, cell: Cell, index: number): void {
 }
 
 export function isWalkable(level: Level, cell: Cell, palette: TilePalette): boolean {
-  return palette.byIndex(tilesLayer(level)[cell]!).walkable;
+  return (palette.flagBits(tilesLayer(level)[cell]!) & palette.walkableMask) !== 0;
 }
 
 export function isTransparent(level: Level, cell: Cell, palette: TilePalette): boolean {
-  return palette.byIndex(tilesLayer(level)[cell]!).transparent;
+  return (palette.flagBits(tilesLayer(level)[cell]!) & palette.transparentMask) !== 0;
 }
 
 /** Pack a point into this level's cell space. */
 export function levelCell(level: Level, x: number, y: number): Cell {
   return cellOf({ x, y }, level.width);
+}
+
+// --- shared layer lifecycle (§8.1) -----------------------------------------
+//
+// One impl for "get-or-create a full-grid typed-array layer", shared by the
+// field store, visibility, the flag index, and steppers. A layer is always
+// `width*height` long; a wrong-length/wrong-type existing layer is replaced.
+
+/** Get-or-create a `width*height` Float32 layer named `name`. */
+export function ensureFloatLayer(level: Level, name: string): Float32Array {
+  const n = level.width * level.height;
+  let layer = level.layers.get(name);
+  if (!(layer instanceof Float32Array) || layer.length !== n) {
+    layer = new Float32Array(n);
+    level.layers.set(name, layer);
+  }
+  return layer;
+}
+
+/** Get-or-create a `width*height` Uint8 layer named `name`. */
+export function ensureU8Layer(level: Level, name: string): Uint8Array {
+  const n = level.width * level.height;
+  let layer = level.layers.get(name);
+  if (!(layer instanceof Uint8Array) || layer.length !== n) {
+    layer = new Uint8Array(n);
+    level.layers.set(name, layer);
+  }
+  return layer;
+}
+
+/** Get-or-create a `width*height` Uint16 layer named `name`. */
+export function ensureU16Layer(level: Level, name: string): Uint16Array {
+  const n = level.width * level.height;
+  let layer = level.layers.get(name);
+  if (!(layer instanceof Uint16Array) || layer.length !== n) {
+    layer = new Uint16Array(n);
+    level.layers.set(name, layer);
+  }
+  return layer;
 }

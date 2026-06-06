@@ -124,24 +124,32 @@ Co-op needs a fog policy (§11.1 lists the three FOV functions):
 `createGameServer` is a headless, **transport-agnostic** host: it owns one `World`, accepts joins and buffered intents, advances a real-time tick, and renders per player. It is the one *app-layer* module — it may import `render/` to build frames — and nothing in the core depends on it.
 
 ```ts
-interface GameServer {
+interface GameServer<E = unknown> {
   readonly world: World;
   readonly players: ReadonlySet<EntityId>;
   join(): EntityId;                              // spawn a player; seeds its FOV in hidden mode
   leave(id: EntityId): void;                     // despawn + drop its private visibility layers
   enqueue(id: EntityId, action: Action): void;   // buffer the player's next action
   tick(ticks: number): ServerUpdate;             // advance the shared world
-  viewFor(id: EntityId, viewport: Viewport): PlayerView;   // the per-player payload a transport sends
+  viewFor(id: EntityId, viewport: Viewport): PlayerView<E>; // the per-player payload a transport sends
+  canViewerSee(id: EntityId, cell: Cell): boolean;          // per-player visual (LoS) perception
   snapshot(): string;                            // encoded state for (re)join
 }
-interface PlayerView { frame: RenderFrame; hp?: { current: number; max: number }; alive: boolean }
+interface PlayerView<E = unknown> { frame: RenderFrame; hp?: { current: number; max: number }; alive: boolean; extra?: E }
+interface ServerUpdate { worldClock: number; acted: EntityId[]; idle: boolean; events: GameEvent[] }
 ```
 
 `GameServerOptions.fog` is `'shared'` (default) or `'hidden'`. In hidden mode the server recomputes FOV only for the players who moved this tick (joins are seeded on connect) and skips the unused union; `viewFor` renders through that player's private layers, so the wire payload leaks nothing. A transport just pipes messages to `join`/`enqueue`/`leave` and calls `tick` on a clock — a Cloudflare Durable Object would wrap the same calls.
 
+**Events out + per-player perception (R4).** `tick()` returns the ordered `GameEvent`s that tick produced (`ServerUpdate.events`, captured via the bus's `onAny` tap) so the transport can fan them out. Under hidden fog, filter per player: `canViewerSee(id, cell)` is the per-viewer visual (line-of-sight) predicate — the game maps each event to the cell(s) where it's perceivable (not all events are cell-keyed) and adds its own **hearing**-radius checks (distance, game-side; chat stays app-layer). A dead/ghost viewer composes as all-seeing game-side.
+
+**Game-defined HUD payload (R6).** `GameServerOptions.viewExtra(world, playerId) => E` builds a per-player extension (O₂, role, round clock, held item) carried on `PlayerView<E>.extra`; `GameServer<E>` threads the type. Contract: `viewExtra` reads only the viewer's own state, so hidden fog doesn't leak another player's extras.
+
+**Real-time calibration.** Stepper/atmosphere cadences are in **world-ticks** (energy units), and world-ticks-per-wall-second is *your* loop's fixed timestep when it calls `tick(ticks)` — coupled to the action economy (`baseActionCost ÷ speed` world-ticks per actor action). A recurring stepper fires once per cadence boundary even across a multi-tick jump (cadence is wall-clock-chunk-independent). Two tick surfaces, both in world-tick units: global **steppers** (environmental rates) and per-actor **status ticks** (per-breather rates).
+
 ### 25.5 Networked reference (`examples/netcoop`)
 
-The reference transport is a small Node `ws` server: on connect it `join`s and sends a welcome; on input it **sanitizes** the client's `dir` to a single valid step (an authoritative server never trusts client input — no speed-hack, no `NaN`) and `enqueue`s a move; on a fixed-timestep loop it `tick`s and broadcasts each socket only its own `viewFor` frame (skipping unchanged frames), with a localhost origin check. A headless two-client round-trip (`npm test` in the example) proves each client receives a *distinct* per-player frame over the wire and that malformed input can't corrupt the world.
+The reference transport is a small Node `ws` server: on connect it `join`s and sends a welcome; client messages run through a small **decoder map** (`msg.type → decode`) where each branch sanitizes its own payload into a typed `Action` (an authoritative server never trusts client input — no speed-hack, no `NaN`) before `enqueue` — `move` and `useOn` ship as the two reference branches, and a game adds variants by adding a branch. On a fixed-timestep loop it `tick`s and broadcasts each socket only its own `viewFor` frame (skipping unchanged frames), with a localhost origin check. A headless two-client round-trip (`npm test` in the example) proves each client receives a *distinct* per-player frame over the wire and that malformed input can't corrupt the world.
 
 Deferred (not built): client-side prediction (`world.fork()`), frame deltas/compression, per-player log filtering, and a Durable Object adapter — all of which slot onto the same `GameServer`/`viewFor` seam without touching the engine.
 

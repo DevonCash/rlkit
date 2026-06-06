@@ -23,11 +23,28 @@ export type CoreAction =
   | { type: 'wait'; actor: EntityId };
 
 /**
- * An action: a built-in variant or a content-defined one. The open tail keeps
- * the union extensible; dispatch narrows the core variants with ts-pattern and
- * handles the tail with a catch-all (never throws on unknown types — §22.5).
+ * Declaration-merge seam (§7.2): an external consumer of `rlkit` augments this
+ * interface to add strongly-typed action variants without patching engine files:
+ *
+ *   declare module 'rlkit' {
+ *     interface ActionMap { useOn: { type: 'useOn'; actor: EntityId; ... } }
+ *   }
+ *
+ * Empty by default, so `ActionMap[keyof ActionMap]` is `never` — a no-op in the
+ * union until something is merged in.
  */
-export type Action = CoreAction | { type: string; actor: EntityId; [key: string]: unknown };
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface ActionMap {}
+
+/**
+ * An action: a built-in variant, a declaration-merged one (`ActionMap`), or an
+ * untyped content one (the open tail). Dispatch narrows the core variants with
+ * ts-pattern and handles the tail with a catch-all (never throws — §22.5).
+ */
+export type Action =
+  | CoreAction
+  | ActionMap[keyof ActionMap]
+  | { type: string; actor: EntityId; [key: string]: unknown };
 
 /**
  * An atomic state mutation. `validate` is a pure pre-flight check; every queued

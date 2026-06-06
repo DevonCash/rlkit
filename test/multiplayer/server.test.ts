@@ -146,6 +146,60 @@ describe('GameServer (§6.5) — authoritative co-op session', () => {
     expect(server.viewFor(b, vp).frame.cells.some((c) => c.glyph === 'M')).toBe(true);
   });
 
+  it('reports the per-tick event stream and clears it next tick (R4)', () => {
+    const { server } = setup();
+    const a = server.join();
+    server.enqueue(a, { type: 'move', actor: a, dir: { x: 1, y: 0 } });
+    const moved = server.tick(1);
+    expect(moved.events.some((e) => e.type === 'moved')).toBe(true);
+    // No buffered action next tick → no movement events leak from the prior tick.
+    const idleTick = server.tick(1);
+    expect(idleTick.events.some((e) => e.type === 'moved')).toBe(false);
+  });
+
+  it('canViewerSee answers per-player visual perception (hidden fog, R4)', () => {
+    const world = createWorld({ config: defaultConfig, rng: 1 });
+    const lvl = createLevel('L', W, H, 1);
+    world.state.levels.set('L', lvl);
+    const server = createGameServer({ world, spawnPlayer: makeSpawn(lvl), fog: 'hidden' });
+    const a = server.join(); // x=3
+    const b = server.join(); // x=8
+    const monCell = levelCell(lvl, 12, 3); // 9 from A (>radius 8), 4 from B
+    const mon = createEntity('mon', [{ type: 'position', x: 12, y: 3, levelId: 'L' }]);
+    world.state.entities.set('mon', mon);
+    world.services.queries.index(mon);
+    world.services.queries.place('mon', 'L', monCell);
+    server.tick(1); // compute private FOVs
+
+    expect(server.canViewerSee(b, monCell)).toBe(true); // B perceives that cell
+    expect(server.canViewerSee(a, monCell)).toBe(false); // A does not
+    expect(server.canViewerSee(a, levelCell(lvl, 3, 3))).toBe(true); // A sees its own cell
+    // A dead/off-timeline player composes as all-seeing game-side (engine says false).
+    expect(server.canViewerSee('ghost', monCell)).toBe(false);
+  });
+
+  it('carries a game-supplied per-player view extension (viewExtra, R6)', () => {
+    const world = createWorld({ config: defaultConfig, rng: 1 });
+    const lvl = createLevel('L', W, H, 1);
+    world.state.levels.set('L', lvl);
+    type Extra = { oxygen: number; role: string };
+    const server = createGameServer<Extra>({
+      world,
+      spawnPlayer: makeSpawn(lvl),
+      fog: 'hidden',
+      // Reads only the viewer's own state (the documented viewer-only contract).
+      viewExtra: (_w, id): Extra => ({ oxygen: 100, role: id === 'player-0' ? 'traitor' : 'crew' }),
+    });
+    const a = server.join();
+    const b = server.join();
+    server.tick(1);
+    const vp = { width: W, height: H };
+    expect(server.viewFor(a, vp).extra).toEqual({ oxygen: 100, role: 'traitor' });
+    expect(server.viewFor(b, vp).extra).toEqual({ oxygen: 100, role: 'crew' });
+    // Each player only ever receives its OWN extra (the payload is built per id).
+    expect(server.viewFor(a, vp).extra?.role).not.toBe(server.viewFor(b, vp).extra?.role);
+  });
+
   it('is deterministic: same join/enqueue/tick stream → identical worlds', () => {
     const digest = (world: World) =>
       JSON.stringify([...world.state.entities.values()].map((e) => [e.id, get<Position>(e, 'position')]).sort((x, y) => (x[0]! < y[0]! ? -1 : 1)));

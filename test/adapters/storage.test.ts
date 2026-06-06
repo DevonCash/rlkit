@@ -9,7 +9,9 @@ function sampleState(): WorldState {
   const hero = createEntity('hero', [{ type: 'position', x: 2, y: 3, levelId: 'L' }], ['aiHunter']);
   const level = createLevel('L', 4, 4, 1); // Uint16 'tiles' layer
   level.layers.set('scent', Float32Array.from([0, 0.5, 1.25, -3.5]));
-  level.layers.set('flags', Uint8Array.from([1, 0, 255, 7]));
+  // `heat` is an arbitrary persisted Uint8 layer (NOT the reserved transient
+  // `flags`/`visible`/`field:*`, which the codec intentionally drops on save).
+  level.layers.set('heat', Uint8Array.from([1, 0, 255, 7]));
   level.metadata = { depth: 2, theme: 'cave' };
   return {
     entities: new Map([['hero', hero]]),
@@ -42,9 +44,9 @@ describe('storage codec (§22.13)', () => {
     const level = decoded.levels.get('L')!;
     expect(level.layers.get('tiles')).toBeInstanceOf(Uint16Array);
     expect(level.layers.get('scent')).toBeInstanceOf(Float32Array);
-    expect(level.layers.get('flags')).toBeInstanceOf(Uint8Array);
+    expect(level.layers.get('heat')).toBeInstanceOf(Uint8Array);
     expect(Array.from(level.layers.get('scent') as Float32Array)).toEqual([0, 0.5, 1.25, -3.5]);
-    expect(Array.from(level.layers.get('flags') as Uint8Array)).toEqual([1, 0, 255, 7]);
+    expect(Array.from(level.layers.get('heat') as Uint8Array)).toEqual([1, 0, 255, 7]);
   });
 
   it('preserves the entity component map and mixin names', () => {

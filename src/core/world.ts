@@ -18,7 +18,9 @@ import { createEventBus } from './events';
 import { createQueries, type QueryIndex } from './query';
 import { createRegistry, type Registries } from './registry';
 import { createReactorRegistry, type ReactorRegistry } from './reactor';
+import { createBumpInteractionRegistry, type BumpInteractionRegistry } from './bump';
 import { createTilePalette, type TilePalette } from './tiles';
+import { createFlagRegistry, type FlagRegistry, type FlagManager } from './flags';
 import type { FovProvider } from './fov';
 import type { PathProvider } from './path';
 import type { FieldManager } from './fields';
@@ -97,8 +99,14 @@ export interface Services {
   registries: Registries;
   /** Global/system reactors (entity reactors come from mixins — §7.3). */
   reactors: ReactorRegistry;
+  /** Bump→action dispatch consulted by the move handler (§7.2, R7). */
+  bumpInteractions: BumpInteractionRegistry;
   /** Tile definitions + int↔id mapping for level grids (§8.1). */
   tiles: TilePalette;
+  /** Flag name→bit registry (`walkable`/`transparent` + game flags — §8.1). */
+  flags: FlagRegistry;
+  /** Per-level composed-flag index (maintained `flags` layer — §8.1). */
+  flagIndex: FlagManager;
   /** Field-of-view provider (rotJS behind the interface — §11.1). */
   fov: FovProvider;
   /** Pathfinding provider (rotJS behind the interface — §11.1). */
@@ -184,6 +192,11 @@ export interface CreateWorldOptions {
    * given the assembled `World` so field producers can resolve goal cells.
    */
   makeFields: (world: World) => FieldManager;
+  /**
+   * Factory for the per-level composed-flag index. Injected for the same reason
+   * as `makeFields` (impl is sim-only) and given the assembled `World`.
+   */
+  makeFlagIndex: (world: World) => FlagManager;
   /** Extra registries to merge in beyond the engine defaults. */
   registries?: Registries;
   /**
@@ -245,16 +258,23 @@ export function createWorld(opts: CreateWorldOptions): World {
     ...opts.registries,
   };
 
+  // The flag registry must exist before the palette (the palette resolves each
+  // tile's flag bits through it at registration time).
+  const flags = createFlagRegistry();
+
   const services: Services = {
     bus: createEventBus(),
     queries,
     registries,
     reactors: createReactorRegistry(),
-    tiles: createTilePalette(),
+    bumpInteractions: createBumpInteractionRegistry(),
+    tiles: createTilePalette(flags),
+    flags,
+    // The field/flag managers need the assembled World, so they are wired in just
+    // below once `world` exists.
+    flagIndex: undefined as unknown as FlagManager,
     fov: opts.fov,
     path: opts.path,
-    // The field manager needs the assembled World (to resolve goal cells), so it
-    // is wired in just below once `world` exists.
     fields: undefined as unknown as FieldManager,
     rng,
     config: opts.config,
@@ -263,5 +283,6 @@ export function createWorld(opts: CreateWorldOptions): World {
 
   const world: World = { state, services };
   services.fields = opts.makeFields(world);
+  services.flagIndex = opts.makeFlagIndex(world);
   return world;
 }

@@ -37,7 +37,9 @@ import {
 } from './sim/items';
 import type { Mixin } from './core/mixin';
 import { aiHunterMixin, aiWandererMixin } from './sim/ai/simple';
-import { createFieldManager } from './sim/ai/field';
+import { createFieldManager } from './sim/field';
+import { createFlagManager } from './sim/flags';
+import { attackBumpInteraction } from './sim/bump';
 import { desireAiMixin } from './sim/ai/desire-ai';
 import { diedReactor } from './sim/death';
 import { registerCoreTimerEffects } from './sim/effects';
@@ -136,6 +138,7 @@ export type { Queries } from './core/query';
 export { createEventBus, createReactionLoop } from './core/events';
 export type {
   GameEvent,
+  EventMap,
   EventBus,
   EventListener,
   ReactionLoop,
@@ -153,10 +156,29 @@ export {
   isTransparent,
   tilesLayer,
   levelCell,
+  ensureFloatLayer,
+  ensureU8Layer,
+  ensureU16Layer,
   TILES_LAYER,
 } from './core/level';
 export type { TilePalette } from './core/tiles';
 export { createTilePalette, registerCoreTiles } from './core/tiles';
+export { setTileEffect } from './core/tile-effect';
+
+// --- tile flags + composed-flag index + steppers (§8.1, R1) ----------------
+export { createFlagRegistry, MAX_FLAGS } from './core/flags';
+export type { FlagRegistry, FlagManager, FlagIndex } from './core/flags';
+export { createFlagManager, FLAGS_LAYER } from './sim/flags';
+export { TileFlags } from './core/component';
+export { registerStepper } from './sim/stepper';
+export type { Stepper } from './sim/stepper';
+
+// --- cell-network connectivity (§6, R3) ------------------------------------
+export { createNetworkManager } from './sim/network';
+export type { NetworkManager, NetworkIndex, NetworkDescriptor } from './sim/network';
+
+// --- grid connectivity kernels (§8.1) --------------------------------------
+export { reachable, labelComponents } from './core/graph';
 
 // --- geometry / targeting (§11A.3) -----------------------------------------
 export { line, hasLoS, cellsIn } from './core/geometry';
@@ -165,6 +187,7 @@ export type { Shape, CellsInOptions } from './core/geometry';
 // --- action / effect / reactor / mixin spine (§7.2, §7.3, §5.3) ------------
 export type {
   Action,
+  ActionMap,
   CoreAction,
   Effect,
   ActionContext,
@@ -181,6 +204,9 @@ export type {
   ReactorRegistry,
 } from './core/reactor';
 export { createReactorRegistry } from './core/reactor';
+export { createBumpInteractionRegistry, BLOCK } from './core/bump';
+export type { BumpInteraction, BumpInteractionRegistry, BumpContext, BumpResult } from './core/bump';
+export { attackBumpInteraction } from './sim/bump';
 export type { Mixin, MixinRegistry } from './core/mixin';
 export { createMixinRegistry, resolveMixins } from './core/mixin';
 
@@ -304,6 +330,7 @@ export {
   exploredLayerFor,
   isVisible,
   isExplored,
+  canViewerSee,
   VISIBLE_LAYER,
   EXPLORED_LAYER,
 } from './sim/visibility';
@@ -326,8 +353,8 @@ export type {
   DesireProfile,
 } from './core/fields';
 export { DesireAIData } from './core/component';
-export { createFieldManager, registerFieldProducer, FIELD_LAYER_PREFIX } from './sim/ai/field';
-export type { GoalSource } from './sim/ai/field';
+export { createFieldManager, registerFieldProducer, FIELD_LAYER_PREFIX } from './sim/field';
+export type { GoalSource } from './sim/field';
 export { goalProducer, scentProducer, influenceProducer } from './sim/ai/producers';
 export type { GoalParams, ScentParams, InfluenceParams } from './sim/ai/producers';
 export { desireAiMixin } from './sim/ai/desire-ai';
@@ -465,6 +492,8 @@ function registerCoreContent(world: World): void {
   mixins.register('desire-ai', desireAiMixin);
   registerCoreConsumableEffects(world.services.registries.consumableEffects as ConsumableEffectRegistry);
   registerCoreTimerEffects(world.services.registries.timerEffects as TimerEffectRegistry);
+  world.services.bumpInteractions.register(attackBumpInteraction); // R7 default: bump → attack
+
   registerCoreTriggerContent(
     world.services.registries.triggerTests as TriggerTestRegistry,
     world.services.registries.triggerEffects as TriggerEffectRegistry,
@@ -482,6 +511,7 @@ export function createWorld(opts: WorldOptions): World {
     fov: opts.fov ?? makeRotFov(),
     path: opts.path ?? makeRotPath(),
     makeFields: createFieldManager,
+    makeFlagIndex: createFlagManager,
     ...(opts.registries ? { registries: opts.registries } : {}),
   };
   const world = assembleWorld(core);
@@ -550,6 +580,7 @@ export function loadWorld(raw: string | unknown, opts: LoadOptions = {}): World 
     fov: opts.fov ?? makeRotFov(),
     path: opts.path ?? makeRotPath(),
     makeFields: createFieldManager,
+    makeFlagIndex: createFlagManager,
     initialState: state,
     ...(opts.registries ? { registries: opts.registries } : {}),
   };

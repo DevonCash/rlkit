@@ -14,6 +14,7 @@
  */
 import { createRegistry, type Registry } from './registry';
 import type { TileType } from './level';
+import { createFlagRegistry, type FlagRegistry } from './flags';
 
 export interface TilePalette {
   /** Register a tile, assigning it the next integer index; returns that index. */
@@ -31,6 +32,17 @@ export interface TilePalette {
   ids(): string[];
   /** Number of registered tiles. */
   readonly size: number;
+  /**
+   * The composed flag bitmask for a tile index — `walkable`/`transparent` from
+   * the booleans plus any named `flags`, resolved through the `FlagRegistry` at
+   * registration time (§8.1). The hot path for `isWalkable`/`isTransparent` and
+   * the source of the tile portion of the composed `flags` layer.
+   */
+  flagBits(index: number): number;
+  /** Bitmask of the `walkable` flag (cached). */
+  readonly walkableMask: number;
+  /** Bitmask of the `transparent` flag (cached). */
+  readonly transparentMask: number;
 }
 
 /** Register a list of tile defs into a palette in order (first → index 0). */
@@ -38,10 +50,22 @@ export function registerCoreTiles(palette: TilePalette, tiles: readonly TileType
   for (const t of tiles) palette.register(t);
 }
 
-export function createTilePalette(): TilePalette {
+/** Resolve a tile's booleans + named flags to a composed bitmask (throws on unknown flag). */
+function tileFlagMask(tile: TileType, flags: FlagRegistry): number {
+  let m = 0;
+  if (tile.walkable) m |= 1 << flags.bit('walkable');
+  if (tile.transparent) m |= 1 << flags.bit('transparent');
+  if (tile.flags) for (const f of tile.flags) m |= 1 << flags.bit(f);
+  return m;
+}
+
+export function createTilePalette(flags: FlagRegistry = createFlagRegistry()): TilePalette {
   const registry: Registry<TileType> = createRegistry<TileType>('tile');
   const order: string[] = []; // index → id
   const indexById = new Map<string, number>();
+  const bits: number[] = []; // index → composed flag bitmask
+  const walkableMask = 1 << flags.bit('walkable');
+  const transparentMask = 1 << flags.bit('transparent');
 
   return {
     register(tile) {
@@ -49,6 +73,7 @@ export function createTilePalette(): TilePalette {
       const i = order.length;
       order.push(tile.id);
       indexById.set(tile.id, i);
+      bits.push(tileFlagMask(tile, flags)); // resolved now → flags must be registered first
       return i;
     },
     index(id) {
@@ -76,5 +101,12 @@ export function createTilePalette(): TilePalette {
     get size() {
       return order.length;
     },
+    flagBits(i) {
+      const m = bits[i];
+      if (m === undefined) throw new Error(`TilePalette: index ${i} out of range`);
+      return m;
+    },
+    walkableMask,
+    transparentMask,
   };
 }

@@ -15,24 +15,26 @@ import type { Reactor } from '../core/reactor';
 import type { Registry } from '../core/registry';
 import type { Module } from '../core/module';
 import { cellOf } from '../core/coords';
-import { tileAt, setTile } from '../core/level';
+import { tileAt } from '../core/level';
+import { setTileEffect } from '../core/tile-effect';
 
 const CLOSED = { id: 'door_closed', walkable: false, transparent: false, glyph: '+', fg: '#b85' };
 const OPEN = { id: 'door_open', walkable: true, transparent: true, glyph: "'", fg: '#b85' };
 
-/** Swap a closed door to open (no-op via validate if it isn't a closed door). */
+/**
+ * Swap a closed door to open (no-op via validate if it isn't a closed door).
+ * Delegates the tile swap to the core `setTileEffect` so `tile:changed` fires for
+ * fields/FOV/flag-index invalidation, then adds the door's own `door:opened`.
+ */
 function openDoorEffect(levelId: string, cell: number): Effect {
+  const swap = setTileEffect(levelId, cell, 'door_open');
   return {
     kind: 'open-door',
     validate: (w) => {
       const l = w.state.levels.get(levelId);
       return !!l && tileAt(l, cell, w.services.tiles).id === 'door_closed';
     },
-    apply(world) {
-      const l = world.state.levels.get(levelId)!;
-      setTile(l, cell, world.services.tiles.index('door_open'));
-      return [{ type: 'door:opened', cell, levelId }];
-    },
+    apply: (world) => [...swap.apply(world), { type: 'door:opened', cell, levelId }],
   };
 }
 

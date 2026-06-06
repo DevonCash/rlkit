@@ -174,6 +174,15 @@ export const DesireAIData = z.object({
 });
 export type DesireAIData = z.infer<typeof DesireAIData>;
 
+// --- Tile flags (§8.1) ----------------------------------------------------
+
+/** An entity contributes these flag bits at its cell (e.g. a sealing object → `airtight`). */
+export const TileFlags = z.object({
+  type: z.literal('tileFlags'),
+  flags: z.array(z.string()),
+});
+export type TileFlags = z.infer<typeof TileFlags>;
+
 /** Register the built-in component schemas into a registry. */
 export function registerCoreComponents(reg: ComponentRegistry): void {
   reg.register('position', { type: 'position', schema: Position });
@@ -189,6 +198,7 @@ export function registerCoreComponents(reg: ComponentRegistry): void {
   reg.register('equipped', { type: 'equipped', schema: Equipped });
   reg.register('allegiance', { type: 'allegiance', schema: Allegiance });
   reg.register('desire-ai', { type: 'desire-ai', schema: DesireAIData });
+  reg.register('tileFlags', { type: 'tileFlags', schema: TileFlags });
   reg.register('stairs', { type: 'stairs', schema: Stairs });
 }
 

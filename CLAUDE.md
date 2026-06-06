@@ -4,7 +4,7 @@ Instructions for working on **rlkit**, a batteries-included TypeScript roguelike
 
 ## Status & where to start
 
-**Implemented (spec rev 10).** All milestones in `docs/10-roadmap-and-tests.md` (§20) are built and green — **314 tests across 70 files**. The headless core, presentation stack, save/load, and the post-spec extensions (opt-in **modules**, level **transitions**, **look/info**, the **real-time** driver, and **co-op multiplayer**) all exist. `npm run build`, `npm test`, `npm run typecheck`, and `npm run lint` all pass.
+**Implemented (spec rev 11).** All milestones in `docs/10-roadmap-and-tests.md` (§20) are built and green — **356 tests across 81 files**. The headless core, presentation stack, save/load, the post-spec extensions (opt-in **modules**, level **transitions**, **look/info**, the **real-time** driver, and **co-op multiplayer**), and the **engine-requirements batch-1** primitives (tile-flag registry + composed flags layer, the `setTile` effect, per-world-tick **steppers**, **cell-network** connectivity, events-out + per-viewer perception, the real `ActionMap`/`EventMap` merge seam, **bump-interaction** dispatch, and the generic per-player view payload) all exist. `npm run build`, `npm test`, `npm run typecheck`, and `npm run lint` all pass.
 
 Before changing anything, read [`docs/INDEX.md`](./docs/INDEX.md) for the map. The spec is the source of truth: when code and spec disagree, fix the code, or — if the intent genuinely changed — update the relevant `docs/` file in the same change. New systems land with their test targets from §22.
 

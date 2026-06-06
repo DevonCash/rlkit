@@ -8,13 +8,18 @@
  * mixins by *name* (serialize-by-name, §6.3); resolution order is the entity's
  * declared array order (decision §21.5).
  *
+ * Those reactor hooks are read-only (they return actions; mutation happens
+ * downstream). The exception is `onActorTick` (§9.4): it runs inside `tickActor`'s
+ * per-actor mutation pass — alongside the status tick — so it MAY mutate directly
+ * (via `changeResource`) and returns the events it caused.
+ *
  * `modifyStats` (a pure derived-value contribution, NOT a reactor) is added in
  * milestone 4 alongside the stat block.
  */
 import type { Action, ActionContext } from './action';
 import type { Entity } from './entity';
 import type { GameEvent } from './events';
-import type { ReadonlyWorld } from './world';
+import type { ReadonlyWorld, World } from './world';
 import type { StatModifier } from './stats';
 import { createRegistry, type Registry } from './registry';
 
@@ -39,6 +44,16 @@ export interface Mixin {
    * action to `resolve`/`perform`. `DesireAI` (M6b) implements this too.
    */
   takeTurn?(self: Entity, world: ReadonlyWorld): Action | undefined;
+  /**
+   * Passive per-actor-turn effect (§9.4): runs inside `tickActor`'s mutation pass,
+   * after the built-in regen + status tick, once per one of this entity's turns.
+   * Unlike the read-only reactor hooks it MAY mutate (e.g. drain O₂ via
+   * `changeResource`) — it shares `tickActor`'s mutation context, exactly like the
+   * status tick beside it — and returns the events it caused (which flow through the
+   * reaction loop, so emitting `died` unschedules the actor via the death reactor).
+   * Should be defensive: read its component(s) and return `[]` if absent.
+   */
+  onActorTick?(self: Entity, world: World): GameEvent[];
 }
 
 export type MixinRegistry = Registry<Mixin>;

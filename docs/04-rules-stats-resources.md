@@ -86,6 +86,8 @@ interface Statuses extends Component {
 
 Effect definitions (registry) declare some combination of `modifyStats` (haste → `+speed`), a per-tick `changeResource` (poison → `hp -n`, `cause:'damage'`), and `onExpire`. Durations, stack rules, and per-tick amounts are configurable; the timeline ticks active statuses on the per-actor clock (§7.3).
 
+**Per-actor turn order (`tickActor`).** Each of an entity's turns runs, in order: (1) built-in resource **regen**, (2) active **statuses** (per-tick deltas, decay, expiry), then (3) each of the entity's mixins' **`onActorTick`** in declared order (§5.3). The last is the open hook for *conditional* per-actor effects that fixed-delta statuses can't express — drain O₂ in vacuum but regen in air, tile-aware regen, a magnitude that varies — the per-actor analog of `registerStepper`'s world-tick slot (§7.5), but expressed as a mixin because the effect is per-entity. It runs in the same mutation context as the status tick (so it may `changeResource` directly) and returns events; those flow through `runReactions`, so a hook emitting `died` unschedules the actor via the death reactor with no extra wiring.
+
 ---
 
 ## 10. Items, inventory, equipment

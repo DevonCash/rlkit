@@ -76,6 +76,10 @@ interface Mixin {
   // takeTurn (added M6) is the AI hook (§11.2): decide this entity's action on
   // its turn, or return undefined to let the next AI mixin (priority stack) try.
   takeTurn?(self: Entity, world: ReadonlyWorld): Action | undefined;
+  // onActorTick (§9.4) is a passive per-actor-turn effect (e.g. breathe O₂). Unlike
+  // the read-only reactor hooks it runs in tickActor's mutation pass — alongside the
+  // status tick — so it MAY mutate (changeResource) and returns the events it caused.
+  onActorTick?(self: Entity, world: World): GameEvent[];
 }
 ```
 

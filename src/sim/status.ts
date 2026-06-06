@@ -17,6 +17,7 @@ import type { StatModifier } from '../core/stats';
 import type { World } from '../core/world';
 import type { Effect } from '../core/action';
 import type { Registry } from '../core/registry';
+import { resolveMixins, type MixinRegistry } from '../core/mixin';
 import { changeResource } from './resources';
 import type { ResourceDef } from './resources';
 
@@ -102,10 +103,11 @@ function resourceCappedBy(world: World, statName: string): string | undefined {
 }
 
 /**
- * Advance one of `entityId`'s turns: apply each active status's per-tick delta,
- * decrement durations, and expire+remove the finished ones (emitting `onExpire`
- * and a `max-reduced` re-clamp poke for any expiring max-affecting modifier).
- * Mutates; returns the events. Driver-invoked (M7); tested directly here.
+ * Advance one of `entityId`'s turns, in order: built-in resource regen → active
+ * statuses (per-tick deltas, duration decay, expiry — emitting `onExpire` and a
+ * `max-reduced` re-clamp poke for expiring max-affecting modifiers) → each of the
+ * entity's mixins' `onActorTick` (§9.4). Mutates; returns the events (driven through
+ * `runReactions` by the driver, so a `died` hook unschedules via the death reactor).
  */
 export function tickActor(world: World, entityId: string): GameEvent[] {
   const e: Entity | undefined = world.state.entities.get(entityId);
@@ -125,31 +127,41 @@ export function tickActor(world: World, entityId: string): GameEvent[] {
 
   // 2. Statuses: per-tick deltas, duration decay, and expiry.
   const comp = get<StatusesComponent>(e, 'statuses');
-  if (!comp || comp.active.length === 0) return events;
+  if (comp && comp.active.length > 0) {
+    const reg = statusReg(world);
+    const survivors: ActiveStatus[] = [];
 
-  const reg = statusReg(world);
-  const survivors: ActiveStatus[] = [];
-
-  for (const a of comp.active) {
-    const def = reg?.tryGet(a.effectId);
-    const stacks = a.stacks ?? 1;
-    if (def?.onTick) {
-      events.push(
-        ...changeResource(world, entityId, def.onTick.resourceId, def.onTick.amount * stacks, def.onTick.cause),
-      );
-    }
-    const duration = a.duration - 1;
-    if (duration > 0) {
-      survivors.push({ ...a, duration });
-    } else {
-      if (def?.onExpire) events.push({ type: def.onExpire, entity: entityId });
-      // Re-clamp any resource whose max this status was buffing (§9.2).
-      for (const m of def?.modifiers ?? []) {
-        const resId = resourceCappedBy(world, m.stat);
-        if (resId) events.push(...changeResource(world, entityId, resId, 0, 'max-reduced'));
+    for (const a of comp.active) {
+      const def = reg?.tryGet(a.effectId);
+      const stacks = a.stacks ?? 1;
+      if (def?.onTick) {
+        events.push(
+          ...changeResource(world, entityId, def.onTick.resourceId, def.onTick.amount * stacks, def.onTick.cause),
+        );
+      }
+      const duration = a.duration - 1;
+      if (duration > 0) {
+        survivors.push({ ...a, duration });
+      } else {
+        if (def?.onExpire) events.push({ type: def.onExpire, entity: entityId });
+        // Re-clamp any resource whose max this status was buffing (§9.2).
+        for (const m of def?.modifiers ?? []) {
+          const resId = resourceCappedBy(world, m.stat);
+          if (resId) events.push(...changeResource(world, entityId, resId, 0, 'max-reduced'));
+        }
       }
     }
+    comp.active = survivors;
   }
-  comp.active = survivors;
+
+  // 3. Mixin per-actor-tick hooks (§9.4), in the entity's declared mixin order —
+  //    runs for every actor turn, including those with no statuses.
+  if (e.mixins.length > 0) {
+    const mixins = resolveMixins(e, world.services.registries.mixins as MixinRegistry);
+    for (const m of mixins) {
+      if (m.onActorTick) events.push(...m.onActorTick(e, world));
+    }
+  }
+
   return events;
 }

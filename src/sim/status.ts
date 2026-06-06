@@ -17,7 +17,7 @@ import type { StatModifier } from '../core/stats';
 import type { World } from '../core/world';
 import type { Effect } from '../core/action';
 import type { Registry } from '../core/registry';
-import { resolveMixins, type MixinRegistry } from '../core/mixin';
+import type { MixinRegistry } from '../core/mixin';
 import { changeResource } from './resources';
 import type { ResourceDef } from './resources';
 
@@ -155,11 +155,13 @@ export function tickActor(world: World, entityId: string): GameEvent[] {
   }
 
   // 3. Mixin per-actor-tick hooks (§9.4), in the entity's declared mixin order —
-  //    runs for every actor turn, including those with no statuses.
+  //    runs for every actor turn, including those with no statuses. Iterate the
+  //    name list directly (no intermediate array) since this is the per-turn path.
   if (e.mixins.length > 0) {
-    const mixins = resolveMixins(e, world.services.registries.mixins as MixinRegistry);
-    for (const m of mixins) {
-      if (m.onActorTick) events.push(...m.onActorTick(e, world));
+    const mixinReg = world.services.registries.mixins as MixinRegistry;
+    for (const name of e.mixins) {
+      const hook = mixinReg.tryGet(name)?.onActorTick;
+      if (hook) events.push(...hook(e, world));
     }
   }
 

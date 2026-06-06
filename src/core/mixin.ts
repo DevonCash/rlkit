@@ -47,11 +47,13 @@ export interface Mixin {
   /**
    * Passive per-actor-turn effect (§9.4): runs inside `tickActor`'s mutation pass,
    * after the built-in regen + status tick, once per one of this entity's turns.
-   * Unlike the read-only reactor hooks it MAY mutate (e.g. drain O₂ via
-   * `changeResource`) — it shares `tickActor`'s mutation context, exactly like the
-   * status tick beside it — and returns the events it caused (which flow through the
-   * reaction loop, so emitting `died` unschedules the actor via the death reactor).
-   * Should be defensive: read its component(s) and return `[]` if absent.
+   * Unlike the read-only reactor hooks it MAY mutate — it shares `tickActor`'s
+   * mutation context, exactly like the status tick beside it — and returns the
+   * events it caused (which flow through the reaction loop, so emitting `died`
+   * unschedules the actor via the death reactor). Mutate through `changeResource`
+   * (the bounded, event-emitting helper); this is NOT the effect pipeline, so don't
+   * reach for raw `world.state` writes. Should be defensive: read its component(s)
+   * and return `[]` if absent.
    */
   onActorTick?(self: Entity, world: World): GameEvent[];
 }

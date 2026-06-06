@@ -5,8 +5,12 @@
  */
 import { describe, it, expect } from 'vitest';
 import { makeWorld, makeLevel, spawnAt, handlers } from './helpers';
+import { createWorld } from '../../src/index';
 import { perform } from '../../src/sim/action';
 import { BLOCK } from '../../src/core/bump';
+import { defaultConfig } from '../../src/config/defaults';
+import { get } from '../../src/core/entity';
+import type { Resources } from '../../src/core/component';
 import type { ActionHandler } from '../../src/core/action';
 
 /** Hero at (1,1), a plain (non-swappable, non-passable) occupant east at (2,1). */
@@ -72,5 +76,44 @@ describe('bump-interaction dispatch (§7.2, R7)', () => {
     const out = perform(w, { type: 'move', actor: 'hero', dir: { x: 1, y: 0 } });
     expect(out.status).toBe('done'); // swapped, not blocked
     expect(asked).toBe(false); // the channel was never consulted for a swappable occupant
+  });
+});
+
+describe('config.movement.bumpToAttack (R7 opt-out)', () => {
+  /** A world with the default bump→attack rule suppressed (intent-based combat). */
+  function intentBasedWorld() {
+    const w = createWorld({
+      config: { ...defaultConfig, movement: { ...defaultConfig.movement, bumpToAttack: false } },
+      rng: 1,
+    });
+    w.state.levels.set('L', makeLevel('L', 4, 3));
+    const hero = spawnAt(w, 'hero', 'L', 1, 1);
+    hero.components.set('stats', { type: 'stats', base: { attack: 5 } });
+    const obj = spawnAt(w, 'obj', 'L', 2, 1);
+    obj.components.set('stats', { type: 'stats', base: { 'max-hp': 10 } });
+    obj.components.set('resources', { type: 'resources', pools: { hp: { current: 10 } } });
+    return w;
+  }
+
+  it('bumping a non-ally occupant blocks (no default attack registered)', () => {
+    const w = intentBasedWorld();
+    const out = perform(w, { type: 'move', actor: 'hero', dir: { x: 1, y: 0 } });
+    expect(out.status).toBe('fizzled'); // blocked, not an attack
+    const hp = get<Resources>(w.state.entities.get('obj')!, 'resources')!.pools.hp?.current;
+    expect(hp).toBe(10); // unharmed
+  });
+
+  it('an explicit attack still resolves (the core attack handler is unaffected)', () => {
+    const w = intentBasedWorld();
+    const out = perform(w, { type: 'attack', actor: 'hero', target: 'obj' });
+    expect(out.status).toBe('done');
+  });
+
+  it('a game-registered bump rule still wins (the channel is live)', () => {
+    const w = intentBasedWorld();
+    let claimed = false;
+    w.services.bumpInteractions.register({ priority: 1, claim: () => { claimed = true; return BLOCK; } });
+    perform(w, { type: 'move', actor: 'hero', dir: { x: 1, y: 0 } });
+    expect(claimed).toBe(true);
   });
 });

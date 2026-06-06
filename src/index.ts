@@ -492,7 +492,11 @@ function registerCoreContent(world: World): void {
   mixins.register('desire-ai', desireAiMixin);
   registerCoreConsumableEffects(world.services.registries.consumableEffects as ConsumableEffectRegistry);
   registerCoreTimerEffects(world.services.registries.timerEffects as TimerEffectRegistry);
-  world.services.bumpInteractions.register(attackBumpInteraction); // R7 default: bump → attack
+  // R7 default: bump → attack (the roguelike convention). Config-toggleable —
+  // `bumpToAttack: false` gives intent-based combat (bump = swap/block).
+  if (world.services.config.movement.bumpToAttack) {
+    world.services.bumpInteractions.register(attackBumpInteraction);
+  }
 
   registerCoreTriggerContent(
     world.services.registries.triggerTests as TriggerTestRegistry,

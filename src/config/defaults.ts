@@ -36,11 +36,14 @@ export interface Config {
   /** Inventory limits (§10): default item-count cap + optional carry-weight cap. */
   readonly inventory: { readonly defaultCapacity: number; readonly maxCarryWeight?: number };
   /**
-   * Movement (§7.4): component types whose entities do NOT block a step — the
-   * mover walks onto the cell instead of bumping. Floor items and stairs are the
-   * engine's intrinsic walk-over kinds; games can extend the set.
+   * Movement (§7.4): `passable` is the component types whose entities do NOT
+   * block a step — the mover walks onto the cell instead of bumping (floor items
+   * and stairs are the engine's intrinsic walk-over kinds; games can extend it).
+   * `bumpToAttack` registers the default bump→attack interaction (the roguelike
+   * convention, §7.2/R7); set `false` for intent-based combat (bump = swap/block,
+   * strikes only via an explicit/`useOn` action).
    */
-  readonly movement: { readonly passable: readonly string[] };
+  readonly movement: { readonly passable: readonly string[]; readonly bumpToAttack: boolean };
   /** Field of view (§11.1): default sight radius (overridden by a sight-radius stat). */
   readonly fov: { readonly defaultRadius: number };
   /** Faction stance matrix (§11A.2): default stance + per-faction overrides. */
@@ -97,7 +100,7 @@ export const defaultConfig: Config = {
   combat: { minDamage: 1, variance: 2 },
   equipment: { slots: ['weapon', 'armor', 'ring'] },
   inventory: { defaultCapacity: 26 },
-  movement: { passable: ['item', 'stairs'] },
+  movement: { passable: ['item', 'stairs'], bumpToAttack: true },
   fov: { defaultRadius: 8 },
   factions: { default: 'neutral', matrix: {} },
   fields: {

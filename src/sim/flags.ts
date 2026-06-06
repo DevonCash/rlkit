@@ -91,5 +91,12 @@ export function createFlagManager(world: World): FlagManager {
       }
       return store;
     },
+    disposeLevel(levelId) {
+      const store = stores.get(levelId);
+      if (store) {
+        store.dispose();
+        stores.delete(levelId);
+      }
+    },
   };
 }

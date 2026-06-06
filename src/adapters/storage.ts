@@ -29,6 +29,13 @@ import type { SaveBlob } from '../content/validate';
 // (`field:<id>`), and `sim/flags.ts` (`flags`). `explored`/`explored:<id>`
 // (player memory), `tiles`, and game-authoritative sim layers (e.g. `pressure`)
 // are NOT transient and persist.
+//
+// NOTE: `field:*` covers BOTH pure fields (goal/Dijkstra — re-derived exactly) and
+// *accumulating* ones (scent/influence). Those accumulate over turns, so dropping
+// them resets their accumulation on load. No effect today (`FieldStore.tick` is not
+// driven — §11.3), but when the AI mechanic is extracted and steps them, revisit
+// whether a particular accumulating field should persist (give it a non-`field:`
+// layer name) or is fine to re-warm after load.
 function isTransientLayer(name: string): boolean {
   return (
     name === 'visible' ||

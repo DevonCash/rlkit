@@ -71,6 +71,24 @@ describe('composed flag index (§8.1)', () => {
     expect(events[0]).toMatchObject({ type: 'flags:changed', levelId: 'L', cell: c2 });
   });
 
+  it('disposeLevel unsubscribes the index (no further reaction to events)', () => {
+    const { world, lvl } = withAirtight();
+    const e = spawnAt(world, 'door', 'L', 2, 0);
+    set(e, { type: 'tileFlags', flags: ['airtight'] } as TileFlags);
+    const idx = world.services.flagIndex.forLevel('L');
+    const c2 = levelCell(lvl, 2, 0);
+    expect(idx.hasFlagAt(c2, 'airtight')).toBe(true);
+
+    world.services.flagIndex.disposeLevel('L');
+    // The disposed index no longer reacts; a tile:changed won't update its layer.
+    let fired = 0;
+    world.services.bus.on('flags:changed', () => fired++);
+    world.services.bus.emit({ type: 'tile:changed', levelId: 'L', cell: c2, from: 1, to: 0 });
+    expect(fired).toBe(0); // the old subscription is gone
+    // A fresh index is created on next access.
+    expect(world.services.flagIndex.forLevel('L')).not.toBe(idx);
+  });
+
   it('picks up a tile:changed (window smashed → airtight tile removed)', () => {
     const { world, lvl } = withAirtight();
     // Register an airtight window tile and a plain floor swap target.

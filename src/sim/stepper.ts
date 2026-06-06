@@ -21,7 +21,6 @@
  */
 import type { World } from '../core/world';
 import type { Level } from '../core/level';
-import { ensureFloatLayer } from '../core/level';
 import type { GameEvent } from '../core/events';
 import type { TimerEffect } from '../core/action';
 import type { Registry } from '../core/registry';
@@ -29,7 +28,8 @@ import type { Registry } from '../core/registry';
 export interface Stepper {
   /** Stable id; the timer-effect is registered as `stepper:<id>`. */
   id: string;
-  /** The Float32 layer this stepper sweeps (created per level on demand). */
+  /** The Float32 layer this stepper sweeps; a level without it is skipped (the
+   *  game initializes the layer on the levels it wants simulated). */
   layer: string;
   /** World-ticks between runs (must be ≥ 1). */
   cadence: number;
@@ -49,8 +49,12 @@ export function registerStepper(world: World, stepper: Stepper): void {
 
   const run: TimerEffect = (w) => {
     const events: GameEvent[] = [];
+    // Step only levels that already carry the layer — the game initializes it on
+    // the levels it wants simulated (e.g. pressure on station floors), so the
+    // stepper never force-creates the layer on irrelevant levels.
     for (const level of w.state.levels.values()) {
-      const data = ensureFloatLayer(level, layerName);
+      const data = level.layers.get(layerName);
+      if (!(data instanceof Float32Array)) continue;
       const out = step(w, level, data);
       if (out.length > 0) events.push(...out);
     }

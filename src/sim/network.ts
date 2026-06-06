@@ -47,6 +47,8 @@ export interface NetworkIndex {
 
 export interface NetworkManager {
   forLevel(levelId: string): NetworkIndex;
+  /** Dispose a level's index (unsubscribe) and drop it — call on level teardown. */
+  disposeLevel(levelId: string): void;
 }
 
 function createNetworkIndex(world: World, level: Level): NetworkIndex {
@@ -75,7 +77,10 @@ function createNetworkIndex(world: World, level: Level): NetworkIndex {
     return out;
   };
 
-  const labelsOf = (id: string): Int32Array => (dirty.has(id) || !labels.has(id) ? relabel(id) : labels.get(id)!);
+  const labelsOf = (id: string): Int32Array => {
+    if (!descs.has(id)) throw new Error(`NetworkIndex: network "${id}" was not ensure()'d`);
+    return dirty.has(id) || !labels.has(id) ? relabel(id) : labels.get(id)!;
+  };
 
   return {
     ensure(desc) {
@@ -123,6 +128,13 @@ export function createNetworkManager(world: World): NetworkManager {
         stores.set(levelId, store);
       }
       return store;
+    },
+    disposeLevel(levelId) {
+      const store = stores.get(levelId);
+      if (store) {
+        store.dispose();
+        stores.delete(levelId);
+      }
     },
   };
 }

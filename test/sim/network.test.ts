@@ -91,6 +91,17 @@ describe('network index (§6, R3)', () => {
     expect(after.sameNetwork('wires', cell(lvl, 0), cell(lvl, 2))).toBe(true);
   });
 
+  it('throws a clear error when querying an un-ensured network; disposeLevel unsubscribes', () => {
+    const { w } = wireWorld();
+    const mgr = createNetworkManager(w);
+    const net = mgr.forLevel('L');
+    expect(() => net.networkOf('nope', 0)).toThrow(/not ensure/);
+    net.ensure({ id: 'wires', flag: 'wire' });
+    expect(() => net.networkOf('wires', 0)).not.toThrow();
+    mgr.disposeLevel('L'); // drops the index + its bus subscriptions
+    expect(mgr.forLevel('L')).not.toBe(net); // a fresh index next time
+  });
+
   it('the raw-layer escape hatch works and coexists with a flag-backed index', () => {
     const { w, lvl } = wireWorld();
     // A separate `pipe` membership maintained as a raw Uint8 layer.

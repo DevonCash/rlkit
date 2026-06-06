@@ -66,6 +66,17 @@ export interface EventBus {
 export function createEventBus(): EventBus {
   const listeners = new Map<string, EventListener[]>();
   const anyListeners: EventListener[] = [];
+  const deferred: GameEvent[] = [];
+  let emitting = false;
+
+  // Deliver to type listeners, then wildcard, each over a copy so a handler that
+  // (un)subscribes doesn't shift the pass.
+  const deliver = (ev: GameEvent): void => {
+    const arr = listeners.get(ev.type);
+    if (arr) for (const fn of arr.slice()) fn(ev);
+    if (anyListeners.length > 0) for (const fn of anyListeners.slice()) fn(ev);
+  };
+
   return {
     on(type, fn) {
       let arr = listeners.get(type);
@@ -89,10 +100,21 @@ export function createEventBus(): EventBus {
       };
     },
     emit(ev) {
-      // Iterate copies so a handler that (un)subscribes doesn't shift the pass.
-      const arr = listeners.get(ev.type);
-      if (arr) for (const fn of arr.slice()) fn(ev);
-      if (anyListeners.length > 0) for (const fn of anyListeners.slice()) fn(ev);
+      // An event emitted *from within* another event's delivery (e.g. the flag
+      // index publishing `flags:changed` while handling `entity:entered`) is
+      // queued and delivered after the in-progress event finishes — FIFO, so a
+      // derived event never precedes its cause for any listener (incl. onAny).
+      if (emitting) {
+        deferred.push(ev);
+        return;
+      }
+      emitting = true;
+      try {
+        deliver(ev);
+        while (deferred.length > 0) deliver(deferred.shift()!);
+      } finally {
+        emitting = false;
+      }
     },
   };
 }

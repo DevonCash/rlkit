@@ -140,7 +140,10 @@ bootstrap is idempotent (it won't double-schedule). Per-turn AI **field** steppi
 (§11.3) — the engine does not auto-drive it.
 
 The event bus exposes **`onAny(fn)`** — a wildcard that observes every event once,
-in FIFO/cascade emission order, after its type listeners. A transport taps it to
-collect the ordered per-tick event stream (§6.5).
+in FIFO emission order, after its type listeners. An event emitted *from within*
+another event's delivery (e.g. the flag index publishing `flags:changed` while
+handling `entity:entered`) is queued and delivered after the in-progress event
+finishes, so a **derived event never precedes its cause** for any listener. A
+transport taps `onAny` to collect the ordered per-tick event stream (§6.5).
 
 ---

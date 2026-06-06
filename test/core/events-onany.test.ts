@@ -22,6 +22,16 @@ describe('EventBus.onAny (§6.5)', () => {
     expect(order).toEqual(['type:a', 'any:a', 'any:b']); // unsubscribed
   });
 
+  it('orders a derived event AFTER its cause (a nested emit defers)', () => {
+    const bus = createEventBus();
+    const seen: string[] = [];
+    bus.onAny((ev) => seen.push(ev.type));
+    // A listener on 'cause' emits a derived event from WITHIN the delivery.
+    bus.on('cause', () => bus.emit({ type: 'derived' } as GameEvent));
+    bus.emit({ type: 'cause' } as GameEvent);
+    expect(seen).toEqual(['cause', 'derived']); // not ['derived', 'cause']
+  });
+
   it('captures cascaded events in FIFO order with no double-delivery', () => {
     const bus = createEventBus();
     const seen: string[] = [];

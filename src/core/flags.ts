@@ -96,4 +96,6 @@ export interface FlagIndex {
 
 export interface FlagManager {
   forLevel(levelId: string): FlagIndex;
+  /** Dispose a level's index (unsubscribe) and drop it — call on level teardown. */
+  disposeLevel(levelId: string): void;
 }

@@ -18,6 +18,11 @@ function worldWithActor(seed = 1) {
   return world;
 }
 
+/** Initialize a stepper's layer on level L (the game opts the level into stepping). */
+function initLayer(world: ReturnType<typeof worldWithActor>, name: string) {
+  ensureFloatLayer(world.state.levels.get('L')!, name);
+}
+
 const counterStepper = (id: string, cadence: number) => ({
   id,
   layer: id,
@@ -32,9 +37,17 @@ const counterStepper = (id: string, cadence: number) => ({
 describe('registerStepper (§7.1)', () => {
   it('fires on its cadence as the world clock advances', () => {
     const world = worldWithActor();
+    initLayer(world, 'count');
     registerStepper(world, counterStepper('count', 5));
     tickRealtime(world, { player: 'p', ticks: 20 }); // fires at clock 5,10,15,20
     expect(ensureFloatLayer(world.state.levels.get('L')!, 'count')[0]).toBe(4);
+  });
+
+  it('skips levels that do not carry the layer (no force-create)', () => {
+    const world = worldWithActor(); // 'count' layer NOT initialized
+    registerStepper(world, counterStepper('count', 5));
+    tickRealtime(world, { player: 'p', ticks: 20 });
+    expect(world.state.levels.get('L')!.layers.has('count')).toBe(false);
   });
 
   it('rejects a non-positive cadence', () => {
@@ -44,6 +57,8 @@ describe('registerStepper (§7.1)', () => {
 
   it('runs two same-cadence steppers each tick (deterministic, both fire)', () => {
     const world = worldWithActor();
+    initLayer(world, 'a');
+    initLayer(world, 'b');
     registerStepper(world, counterStepper('a', 5));
     registerStepper(world, counterStepper('b', 5));
     tickRealtime(world, { player: 'p', ticks: 15 }); // 3 cadence boundaries
@@ -54,6 +69,7 @@ describe('registerStepper (§7.1)', () => {
 
   it('survives save/load when re-registered, continuing the chain identically', () => {
     const world = worldWithActor();
+    initLayer(world, 'count'); // persists (non-transient) across save/load
     registerStepper(world, counterStepper('count', 5));
     tickRealtime(world, { player: 'p', ticks: 10 }); // 2 fires
     expect(ensureFloatLayer(world.state.levels.get('L')!, 'count')[0]).toBe(2);

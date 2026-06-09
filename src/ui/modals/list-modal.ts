@@ -41,6 +41,8 @@ export interface ListModalOptions<T> {
 }
 
 export interface ListModal extends Modal {
+  /** A list modal always renders a full-screen frame. */
+  render(viewport: Viewport): RenderFrame;
   /** The highlighted index (for tests/inspection). */
   selectedIndex(): number;
 }

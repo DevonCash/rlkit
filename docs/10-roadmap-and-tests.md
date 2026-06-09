@@ -47,7 +47,7 @@ All forks from the prior draft are now settled:
 
 ---
 
-*Spec is at rev 11. All milestones (§20), including the post-spec extensions 12–17 and the engine-requirements batch-1 primitives (tile flags, `setTile` effect, steppers, cell-network connectivity, events-out/perception, the `ActionMap`/`EventMap` merge seam, bump-interaction dispatch, generic view payload), are implemented and green — 356 tests across 81 files. The spec stays the source of truth; the code is kept consistent with it.*
+*Spec is at rev 11. All milestones (§20), including the post-spec extensions 12–17 and the engine-requirements batch-1 primitives (tile flags, `setTile` effect, steppers, cell-network connectivity, events-out/perception, the `ActionMap`/`EventMap` merge seam, bump-interaction dispatch, generic view payload), are implemented and green — covered by a comprehensive, passing test suite. The spec stays the source of truth; the code is kept consistent with it.*
 
 ---
 

@@ -1,6 +1,6 @@
 # Batch 1 progress (R0–R7) — COMPLETE
 
-Implemented per the approved plan. Full suite green: **356 tests / 81 files**,
+Implemented per the approved plan. Full suite green;
 `npm run build`/`typecheck`/`lint` all pass.
 
 | Item | Code | Tests | Docs |

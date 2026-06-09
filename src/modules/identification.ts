@@ -12,12 +12,12 @@
 import { z } from 'zod';
 import { get } from '../core/entity';
 import type { Info, Item, Inventory, Equipped, Equipment } from '../core/component';
-import type { ComponentRegistry } from '../core/component';
+import { componentRegistryOf } from '../core/component';
+import { consumableEffectRegistryOf } from '../sim/items';
 import type { Effect, ActionContext } from '../core/action';
 import type { Reactor } from '../core/reactor';
 import type { ReadonlyWorld } from '../core/world';
 import type { Module } from '../core/module';
-import type { ConsumableEffectRegistry } from '../sim/items';
 
 export const Identity = z.object({
   type: z.literal('identity'),
@@ -104,10 +104,10 @@ export function identificationModule(): Module {
   return {
     id: 'identification',
     setup(world) {
-      const components = world.services.registries.components as ComponentRegistry;
+      const components = componentRegistryOf(world);
       if (!components.has('identity')) components.register('identity', { type: 'identity', schema: Identity });
 
-      const ce = world.services.registries.consumableEffects as ConsumableEffectRegistry;
+      const ce = consumableEffectRegistryOf(world);
       // Identify the first unidentified item the user is carrying.
       ce.register('identify', (ctx) => {
         const actor = ctx.world.state.entities.get(ctx.action.actor);

@@ -37,20 +37,21 @@ export type TriggerEffectRegistry = Registry<TriggerEffect>;
 export type TriggerTestRegistry = Registry<TriggerTest>;
 export type TileTriggerRegistry = Registry<readonly TileTrigger[]>;
 
-function effectsReg(world: World): TriggerEffectRegistry | undefined {
-  return world.services.registries.triggerEffects as TriggerEffectRegistry | undefined;
+/** Typed views of the trigger registries (centralize the one downcast each). */
+export function triggerEffectRegistryOf(world: World): TriggerEffectRegistry {
+  return world.services.registries.triggerEffects as TriggerEffectRegistry;
 }
-function testsReg(world: World): TriggerTestRegistry | undefined {
-  return world.services.registries.triggerTests as TriggerTestRegistry | undefined;
+export function triggerTestRegistryOf(world: World): TriggerTestRegistry {
+  return world.services.registries.triggerTests as TriggerTestRegistry;
 }
-function tileReg(world: World): TileTriggerRegistry | undefined {
-  return world.services.registries.tileTriggers as TileTriggerRegistry | undefined;
+export function tileTriggerRegistryOf(world: World): TileTriggerRegistry {
+  return world.services.registries.tileTriggers as TileTriggerRegistry;
 }
 
 /** A named test passes (fail-closed if the id is unregistered). */
 function passesTest(world: World, event: GameEvent, testId: string | undefined): boolean {
   if (testId === undefined) return true;
-  const test = testsReg(world)?.tryGet(testId);
+  const test = triggerTestRegistryOf(world).tryGet(testId);
   return test ? test(world, event) : false;
 }
 
@@ -67,17 +68,16 @@ export function collectTriggerReactions(world: World, event: GameEvent): Action[
   // Hot path: movement emits place-events constantly. A world with no triggers
   // and no tile rules must pay nothing beyond the type checks above.
   const ts = world.state.triggers;
-  const tiles = tileReg(world);
-  const hasTileRules = !!tiles && tiles.ids().length > 0;
+  const tiles = tileTriggerRegistryOf(world);
+  const hasTileRules = tiles.ids().length > 0;
   if (ts.triggers.length === 0 && !hasTileRules) return [];
 
-  const effects = effectsReg(world);
-  if (!effects) return [];
+  const effects = triggerEffectRegistryOf(world);
   const out: Action[] = [];
 
   // 1. Tile-type rules (stateless content).
   const level = world.state.levels.get(levelId);
-  if (hasTileRules && tiles && level) {
+  if (hasTileRules && level) {
     const tileId = world.services.tiles.byIndex(tileIndexAt(level, cell)).id;
     for (const rule of tiles.tryGet(tileId) ?? []) {
       if (rule.on !== event.type) continue;
@@ -144,8 +144,7 @@ export function addTrigger(world: World, instance: TriggerInstance): void {
  * survive load; a rule added only at runtime is lost on save/load.
  */
 export function addTileTrigger(world: World, tileTypeId: string, rule: TileTrigger): void {
-  const reg = tileReg(world);
-  if (!reg) return;
+  const reg = tileTriggerRegistryOf(world);
   const cur = reg.tryGet(tileTypeId) ?? [];
   const next = [...cur, rule];
   if (reg.has(tileTypeId)) reg.override(tileTypeId, next);

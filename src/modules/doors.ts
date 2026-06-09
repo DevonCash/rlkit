@@ -10,9 +10,8 @@
  */
 import { get } from '../core/entity';
 import type { Position } from '../core/component';
-import type { Effect, ActionContext, ActionHandler } from '../core/action';
+import { handlerRegistryOf, type Effect, type ActionContext, type ActionHandler } from '../core/action';
 import type { Reactor } from '../core/reactor';
-import type { Registry } from '../core/registry';
 import type { Module } from '../core/module';
 import { cellOf } from '../core/coords';
 import { tileAt } from '../core/level';
@@ -81,7 +80,7 @@ export function doorsModule(): Module {
       const tiles = world.services.tiles;
       if (!tiles.has(CLOSED.id)) tiles.register(CLOSED);
       if (!tiles.has(OPEN.id)) tiles.register(OPEN);
-      (world.services.registries.handlers as Registry<ActionHandler>).register('open', open);
+      handlerRegistryOf(world).register('open', open);
       world.services.reactors.register(onMove);
     },
   };

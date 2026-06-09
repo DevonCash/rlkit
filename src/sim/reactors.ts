@@ -10,18 +10,13 @@
  * `cell`/`zone` scopes exist in the model but have no dispatch path until
  * triggers/zones land in milestone 11.
  */
-import { resolveMixins } from '../core/mixin';
-import type { MixinRegistry } from '../core/mixin';
+import { resolveMixins, mixinRegistryOf } from '../core/mixin';
 import type { Action, ActionContext } from '../core/action';
 import type { GameEvent } from '../core/events';
 import type { ReactorRegistry } from '../core/reactor';
 import type { Entity, EntityId } from '../core/entity';
 import type { ReadonlyWorld, World } from '../core/world';
 import { collectTriggerReactions } from './triggers';
-
-function mixinRegistry(world: ReadonlyWorld): MixinRegistry {
-  return world.services.registries.mixins as unknown as MixinRegistry;
-}
 
 function reactorRegistry(world: ReadonlyWorld): ReactorRegistry {
   return world.services.reactors;
@@ -42,7 +37,7 @@ function involvedEntities(world: ReadonlyWorld, action: Action): Entity[] {
 
 /** Fire pre-phase reactors against the mutable context (actor → target → global). */
 export function runPreReactors(world: World, ctx: ActionContext): void {
-  const mixins = mixinRegistry(world);
+  const mixins = mixinRegistryOf(world);
   for (const self of involvedEntities(world, ctx.action)) {
     for (const mixin of resolveMixins(self, mixins)) {
       mixin.onAction?.(ctx, self);
@@ -58,7 +53,7 @@ export function runPreReactors(world: World, ctx: ActionContext): void {
 /** Gather follow-up actions from post-phase reactors for `event` (entity → global). */
 export function collectReactions(world: World, event: GameEvent): Action[] {
   const out: Action[] = [];
-  const mixins = mixinRegistry(world);
+  const mixins = mixinRegistryOf(world);
 
   const entityId = (event as { entity?: unknown }).entity;
   if (typeof entityId === 'string') {

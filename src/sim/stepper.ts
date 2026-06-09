@@ -23,7 +23,7 @@ import type { World } from '../core/world';
 import type { Level } from '../core/level';
 import type { GameEvent } from '../core/events';
 import type { TimerEffect } from '../core/action';
-import type { Registry } from '../core/registry';
+import { timerEffectRegistryOf } from './effects';
 
 export interface Stepper {
   /** Stable id; the timer-effect is registered as `stepper:<id>`. */
@@ -44,7 +44,7 @@ export function registerStepper(world: World, stepper: Stepper): void {
     throw new Error(`registerStepper("${id}"): cadence must be an integer ≥ 1`);
   }
   const effectId = `stepper:${id}`;
-  const reg = world.services.registries.timerEffects as Registry<TimerEffect>;
+  const reg = timerEffectRegistryOf(world);
   const timeline = world.services.timeline;
 
   const run: TimerEffect = (w) => {

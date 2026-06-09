@@ -17,9 +17,8 @@ import type { StatModifier } from '../core/stats';
 import type { World } from '../core/world';
 import type { Effect } from '../core/action';
 import type { Registry } from '../core/registry';
-import type { MixinRegistry } from '../core/mixin';
-import { changeResource } from './resources';
-import type { ResourceDef } from './resources';
+import { mixinRegistryOf } from '../core/mixin';
+import { changeResource, resourceRegistryOf } from './resources';
 
 export interface StatusDef {
   id: string;
@@ -32,6 +31,11 @@ export interface StatusDef {
 }
 export type StatusDefRegistry = Registry<StatusDef>;
 
+/** Typed view of the status registry (centralizes the one downcast). */
+export function statusRegistryOf(world: World): StatusDefRegistry {
+  return world.services.registries.statuses as StatusDefRegistry;
+}
+
 interface ActiveStatus {
   effectId: string;
   duration: number;
@@ -40,10 +44,6 @@ interface ActiveStatus {
 interface StatusesComponent extends Component {
   type: 'statuses';
   active: ActiveStatus[];
-}
-
-function statusReg(world: World): StatusDefRegistry | undefined {
-  return world.services.registries.statuses as StatusDefRegistry | undefined;
 }
 
 /** Register the batteries-included proof status defs (overridable content). */
@@ -94,8 +94,7 @@ export function applyStatusEffect(
 
 /** Find the resource whose `max` stat is `statName`, if any (for re-clamp pokes). */
 function resourceCappedBy(world: World, statName: string): string | undefined {
-  const reg = world.services.registries.resources as Registry<ResourceDef> | undefined;
-  if (!reg) return undefined;
+  const reg = resourceRegistryOf(world);
   for (const id of reg.ids()) {
     if (reg.get(id).max === statName) return id;
   }
@@ -118,9 +117,9 @@ export function tickActor(world: World, entityId: string): GameEvent[] {
   //    for each pool the entity holds. Independent of statuses.
   const resComp = get<{ type: 'resources'; pools: Record<string, { current: number }> }>(e, 'resources');
   if (resComp) {
-    const resReg = world.services.registries.resources as Registry<ResourceDef> | undefined;
+    const resReg = resourceRegistryOf(world);
     for (const resourceId of Object.keys(resComp.pools)) {
-      const regen = resReg?.tryGet(resourceId)?.regen;
+      const regen = resReg.tryGet(resourceId)?.regen;
       if (regen) events.push(...changeResource(world, entityId, resourceId, regen, 'regen'));
     }
   }
@@ -128,11 +127,11 @@ export function tickActor(world: World, entityId: string): GameEvent[] {
   // 2. Statuses: per-tick deltas, duration decay, and expiry.
   const comp = get<StatusesComponent>(e, 'statuses');
   if (comp && comp.active.length > 0) {
-    const reg = statusReg(world);
+    const reg = statusRegistryOf(world);
     const survivors: ActiveStatus[] = [];
 
     for (const a of comp.active) {
-      const def = reg?.tryGet(a.effectId);
+      const def = reg.tryGet(a.effectId);
       const stacks = a.stacks ?? 1;
       if (def?.onTick) {
         events.push(
@@ -158,7 +157,7 @@ export function tickActor(world: World, entityId: string): GameEvent[] {
   //    runs for every actor turn, including those with no statuses. Iterate the
   //    name list directly (no intermediate array) since this is the per-turn path.
   if (e.mixins.length > 0) {
-    const mixinReg = world.services.registries.mixins as MixinRegistry;
+    const mixinReg = mixinRegistryOf(world);
     for (const name of e.mixins) {
       const hook = mixinReg.tryGet(name)?.onActorTick;
       if (hook) events.push(...hook(e, world));

@@ -107,6 +107,11 @@ export const equippableMixin: Mixin = {
 export type ConsumableEffect = (ctx: ActionContext, item: Entity, target?: Cell) => void;
 export type ConsumableEffectRegistry = Registry<ConsumableEffect>;
 
+/** Typed view of the consumable-effect registry (centralizes the one downcast). */
+export function consumableEffectRegistryOf(world: ReadonlyWorld): ConsumableEffectRegistry {
+  return world.services.registries.consumableEffects as ConsumableEffectRegistry;
+}
+
 /** Register the batteries-included proof consumable effects (overridable content). */
 export function registerCoreConsumableEffects(reg: ConsumableEffectRegistry): void {
   reg.register('heal-10', (ctx) => {

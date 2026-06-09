@@ -51,7 +51,9 @@ describe('createWorld', () => {
       ...base,
       rng: makeRng(0),
       registries: {
-        statuses: {
+        // A registry kind beyond the built-in set, resolved through the
+        // `Registries` index signature as `Registry<unknown>`.
+        custom: {
           register() {},
           override() {},
           get: () => 0,
@@ -61,6 +63,6 @@ describe('createWorld', () => {
         },
       },
     });
-    expect(w.services.registries.statuses).toBeDefined();
+    expect(w.services.registries.custom).toBeDefined();
   });
 });

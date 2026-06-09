@@ -32,6 +32,8 @@ export interface TargetingModalOptions {
 }
 
 export interface TargetingModal extends Modal {
+  /** A targeting modal always renders overlays over the world frame. */
+  render(viewport: Viewport): Overlay[];
   cursor(): Point;
 }
 

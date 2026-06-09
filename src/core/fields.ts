@@ -13,6 +13,8 @@
  */
 import type { Cell } from './coords';
 import type { RNG } from './rng';
+import type { Registry } from './registry';
+import type { ReadonlyWorld } from './world';
 
 export type FieldId = string;
 export type FieldKind = 'goal' | 'scent' | 'influence';
@@ -28,6 +30,13 @@ export interface FieldDescriptor<P = unknown> {
   perTurn?: boolean;
   /** Computed once, then never updated (hazard-escape). */
   static?: boolean;
+}
+
+export type FieldRegistry = Registry<FieldDescriptor>;
+
+/** Typed view of the field registry (centralizes the one downcast). */
+export function fieldRegistryOf(world: ReadonlyWorld): FieldRegistry {
+  return world.services.registries.fields as FieldRegistry;
 }
 
 /**

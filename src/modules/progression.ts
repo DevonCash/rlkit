@@ -10,15 +10,14 @@
  */
 import { z } from 'zod';
 import { get, type Entity } from '../core/entity';
-import type { Component, ComponentRegistry } from '../core/component';
-import type { Effect, ActionHandler, ActionContext } from '../core/action';
+import { componentRegistryOf, type Component } from '../core/component';
+import { handlerRegistryOf, type Effect, type ActionHandler, type ActionContext } from '../core/action';
 import type { GameEvent } from '../core/events';
 import type { Reactor, EventReactionCtx } from '../core/reactor';
-import type { Registry } from '../core/registry';
 import type { World } from '../core/world';
 import type { Module } from '../core/module';
-import { deriveStat, type StatDef } from '../sim/stats';
-import type { ResourceDef } from '../sim/resources';
+import { deriveStat, statRegistryOf } from '../sim/stats';
+import { resourceRegistryOf } from '../sim/resources';
 import { lastAttackerOf } from './combat';
 
 export const Experience = z.object({ type: z.literal('experience'), xp: z.number(), level: z.number() });
@@ -68,7 +67,7 @@ export function progressionModule(opts: ProgressionOptions): Module {
             }
           }
           const res = get<ResourcesComponent>(e, 'resources');
-          const resReg = world.services.registries.resources as Registry<ResourceDef> | undefined;
+          const resReg = resourceRegistryOf(world);
           if (res) {
             for (const id of refill) {
               const pool = res.pools[id];
@@ -111,11 +110,11 @@ export function progressionModule(opts: ProgressionOptions): Module {
     id: 'progression',
     dependencies: ['combat'],
     setup(world) {
-      const components = world.services.registries.components as ComponentRegistry;
+      const components = componentRegistryOf(world);
       if (!components.has('experience')) components.register('experience', { type: 'experience', schema: Experience });
-      const stats = world.services.registries.stats as Registry<StatDef>;
+      const stats = statRegistryOf(world);
       if (!stats.has('bounty')) stats.register('bounty', { id: 'bounty', default: 0 });
-      (world.services.registries.handlers as Registry<ActionHandler>).register('award-xp', awardXp);
+      handlerRegistryOf(world).register('award-xp', awardXp);
       world.services.reactors.register(onDied);
     },
   };

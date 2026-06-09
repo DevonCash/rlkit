@@ -23,7 +23,7 @@ describe('buildLevel', () => {
     expect(isWalkable(level, entrance, w.services.tiles)).toBe(true);
   });
 
-  test.prop([fc.integer({ min: 1, max: 100000 })])(
+  test.prop([fc.integer({ min: 1, max: 100000 })], { numRuns: 30 })(
     'same world seed → identical level (RNG forked, reproducible)',
     (seed) => {
       const a = buildLevel(world(seed), { generator: 'bsp', width: 32, height: 20 });

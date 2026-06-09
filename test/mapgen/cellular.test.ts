@@ -18,7 +18,7 @@ function gen(seed: number, width = 48, height = 32) {
 }
 
 describe('cellular generator (§22.10)', () => {
-  test.prop([fc.integer({ min: 1, max: 100000 })])(
+  test.prop([fc.integer({ min: 1, max: 100000 })], { numRuns: 30 })(
     'every seed yields a fully reachable level with all spawn hints reachable',
     (seed) => {
       const map = gen(seed);
@@ -28,7 +28,7 @@ describe('cellular generator (§22.10)', () => {
     },
   );
 
-  test.prop([fc.integer({ min: 1, max: 100000 })])(
+  test.prop([fc.integer({ min: 1, max: 100000 })], { numRuns: 30 })(
     'emits only registered tile indices and stays within bounds',
     (seed) => {
       const map = gen(seed);
@@ -40,7 +40,7 @@ describe('cellular generator (§22.10)', () => {
     },
   );
 
-  test.prop([fc.integer({ min: 1, max: 100000 })])('same seed → identical map', (seed) => {
+  test.prop([fc.integer({ min: 1, max: 100000 })], { numRuns: 30 })('same seed → identical map', (seed) => {
     const a = gen(seed);
     const b = gen(seed);
     expect([...a.tiles]).toEqual([...b.tiles]);

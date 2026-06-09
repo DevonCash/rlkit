@@ -8,9 +8,15 @@
  */
 import type { TimerEffect } from '../core/action';
 import type { Registry } from '../core/registry';
+import type { ReadonlyWorld } from '../core/world';
 
 export type { TimerEffect } from '../core/action';
 export type TimerEffectRegistry = Registry<TimerEffect>;
+
+/** Typed view of the timer-effect registry (centralizes the one downcast). */
+export function timerEffectRegistryOf(world: ReadonlyWorld): TimerEffectRegistry {
+  return world.services.registries.timerEffects as TimerEffectRegistry;
+}
 
 /**
  * Register the batteries-included timer-effects (overridable content). Ships one

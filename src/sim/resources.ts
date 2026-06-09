@@ -10,7 +10,7 @@
 import { get, type Entity } from '../core/entity';
 import type { Component } from '../core/component';
 import type { GameEvent } from '../core/events';
-import type { World } from '../core/world';
+import type { World, ReadonlyWorld } from '../core/world';
 import type { Effect } from '../core/action';
 import type { Registry } from '../core/registry';
 import { deriveStat } from './stats';
@@ -35,6 +35,11 @@ export interface ResourceDef {
   thresholds?: Threshold[];
 }
 export type ResourceDefRegistry = Registry<ResourceDef>;
+
+/** Typed view of the resource registry (centralizes the one downcast). */
+export function resourceRegistryOf(world: ReadonlyWorld): ResourceDefRegistry {
+  return world.services.registries.resources as ResourceDefRegistry;
+}
 
 interface ResourcesComponent extends Component {
   type: 'resources';
@@ -66,8 +71,8 @@ export function changeResource(
   const pool = comp?.pools[resourceId];
   if (!e || !pool) return [];
 
-  const defReg = world.services.registries.resources as ResourceDefRegistry | undefined;
-  const def = defReg?.tryGet(resourceId);
+  const defReg = resourceRegistryOf(world);
+  const def = defReg.tryGet(resourceId);
   const max = def ? deriveStat(e, world, def.max) : Number.POSITIVE_INFINITY;
 
   const before = pool.current;

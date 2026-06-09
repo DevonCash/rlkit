@@ -8,6 +8,7 @@
  */
 import { z } from 'zod';
 import { createRegistry, type Registry } from './registry';
+import type { ReadonlyWorld } from './world';
 
 /** Runtime shape shared by every component: a `type` tag plus its data. */
 export interface Component {
@@ -25,6 +26,11 @@ export type ComponentRegistry = Registry<ComponentDef>;
 
 export function createComponentRegistry(): ComponentRegistry {
   return createRegistry<ComponentDef>('component');
+}
+
+/** Typed view of the component registry (centralizes the one downcast). */
+export function componentRegistryOf(world: ReadonlyWorld): ComponentRegistry {
+  return world.services.registries.components as ComponentRegistry;
 }
 
 /**

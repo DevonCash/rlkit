@@ -9,11 +9,10 @@
  * resource system; the module is just the wiring + content hooks.
  */
 import type { Reactor, EventReactionCtx } from '../core/reactor';
-import type { Registry } from '../core/registry';
 import type { Module } from '../core/module';
-import { changeResourceEffect, type ResourceDef } from '../sim/resources';
-import type { StatDef } from '../sim/stats';
-import type { ConsumableEffectRegistry } from '../sim/items';
+import { changeResourceEffect, resourceRegistryOf } from '../sim/resources';
+import { statRegistryOf } from '../sim/stats';
+import { consumableEffectRegistryOf } from '../sim/items';
 
 export interface HungerOptions {
   /** Satiation lost per turn (default 1). */
@@ -47,15 +46,15 @@ export function hungerModule(opts: HungerOptions = {}): Module {
   return {
     id: 'hunger',
     setup(world) {
-      const stats = world.services.registries.stats as Registry<StatDef>;
+      const stats = statRegistryOf(world);
       if (!stats.has('max-satiation')) stats.register('max-satiation', { id: 'max-satiation', default: maxSatiation });
 
-      const resources = world.services.registries.resources as Registry<ResourceDef>;
+      const resources = resourceRegistryOf(world);
       if (!resources.has('satiation')) {
         resources.register('satiation', { id: 'satiation', max: 'max-satiation', regen: -drainPerTurn });
       }
 
-      const ce = world.services.registries.consumableEffects as ConsumableEffectRegistry;
+      const ce = consumableEffectRegistryOf(world);
       for (const food of foods) {
         ce.register(food.effect, (innerCtx) =>
           innerCtx.push(changeResourceEffect(innerCtx.action.actor, 'satiation', food.amount, 'eat')),

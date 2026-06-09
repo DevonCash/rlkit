@@ -8,7 +8,7 @@
  * the base values, modifier amounts, and clamp bounds are config/content.
  */
 import { get, type Entity } from '../core/entity';
-import { resolveMixins, type MixinRegistry } from '../core/mixin';
+import { resolveMixins, mixinRegistryOf } from '../core/mixin';
 import type { Component } from '../core/component';
 import type { StatBlock, StatModifier } from '../core/stats';
 import type { ReadonlyWorld } from '../core/world';
@@ -22,6 +22,11 @@ export interface StatDef {
   max?: number;
 }
 export type StatDefRegistry = Registry<StatDef>;
+
+/** Typed view of the stat registry (centralizes the one downcast). */
+export function statRegistryOf(world: ReadonlyWorld): StatDefRegistry {
+  return world.services.registries.stats as StatDefRegistry;
+}
 
 interface StatsComponent extends Component {
   type: 'stats';
@@ -37,18 +42,11 @@ interface StatusComponent extends Component {
   active: ActiveStatus[];
 }
 
-function statRegistry(world: ReadonlyWorld): StatDefRegistry | undefined {
-  return world.services.registries.stats as StatDefRegistry | undefined;
-}
-
 /** Gather every modifier contributed to `e`, in source order (mixins, statuses). */
 function gatherModifiers(e: Entity, world: ReadonlyWorld): StatModifier[] {
   const out: StatModifier[] = [];
-  const mixins = world.services.registries.mixins as unknown as MixinRegistry | undefined;
-  if (mixins) {
-    for (const m of resolveMixins(e, mixins)) {
-      if (m.modifyStats) out.push(...m.modifyStats(e, world));
-    }
+  for (const m of resolveMixins(e, mixinRegistryOf(world))) {
+    if (m.modifyStats) out.push(...m.modifyStats(e, world));
   }
   const statuses = get<StatusComponent>(e, 'statuses');
   if (statuses) {
@@ -66,7 +64,7 @@ function gatherModifiers(e: Entity, world: ReadonlyWorld): StatModifier[] {
 
 /** Resolve the full stat block for an entity. */
 export function deriveStats(e: Entity, world: ReadonlyWorld): StatBlock {
-  const statReg = statRegistry(world);
+  const statReg = statRegistryOf(world);
   const baseComp = get<StatsComponent>(e, 'stats');
   const mods = gatherModifiers(e, world);
 
@@ -74,11 +72,11 @@ export function deriveStats(e: Entity, world: ReadonlyWorld): StatBlock {
   const ids = new Set<string>();
   if (baseComp) for (const k of Object.keys(baseComp.base)) ids.add(k);
   for (const m of mods) ids.add(m.stat);
-  if (statReg) for (const id of statReg.ids()) ids.add(id);
+  for (const id of statReg.ids()) ids.add(id);
 
   const block: StatBlock = {};
   for (const id of ids) {
-    const def = statReg?.tryGet(id);
+    const def = statReg.tryGet(id);
     let v = baseComp?.base[id] ?? def?.default ?? 0;
     for (const m of mods) if (m.stat === id && m.phase === 'add') v += m.amount;
     for (const m of mods) if (m.stat === id && m.phase === 'mul') v *= m.amount;

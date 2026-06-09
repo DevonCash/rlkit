@@ -10,7 +10,7 @@ import type { Cell } from '../core/coords';
 import { TILES_LAYER, createLevel, type Level } from '../core/level';
 import type { World } from '../core/world';
 import type { Config } from '../config/defaults';
-import type { GeneratorRegistry, MapGenerator } from './generator';
+import { generatorRegistryOf, type MapGenerator } from './generator';
 import { decorate, entranceOf } from './decorate';
 
 /**
@@ -54,7 +54,7 @@ export interface BuiltLevel {
 
 export function buildLevel(world: World, params: BuildLevelParams): BuiltLevel {
   const { tiles: palette } = world.services;
-  const generators = world.services.registries.generators as GeneratorRegistry;
+  const generators = generatorRegistryOf(world);
   const generator: MapGenerator = generators.get(params.generator);
 
   const floorIndex = palette.index('floor');

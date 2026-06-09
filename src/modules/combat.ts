@@ -9,11 +9,10 @@
  * RNG identically to core combat, so it is a behaviour-preserving drop-in.
  */
 import { get, set } from '../core/entity';
-import type { Effect, ActionContext, ActionHandler } from '../core/action';
-import type { Registry } from '../core/registry';
+import { handlerRegistryOf, type Effect, type ActionContext, type ActionHandler } from '../core/action';
 import type { Module } from '../core/module';
 import type { ReadonlyWorld } from '../core/world';
-import { deriveStats, type StatDef } from '../sim/stats';
+import { deriveStats, statRegistryOf } from '../sim/stats';
 import { changeResourceEffect } from '../sim/resources';
 import { defaultDamageFormula } from '../sim/combat';
 
@@ -85,10 +84,10 @@ export function combatModule(opts: CombatOptions = {}): Module {
   return {
     id: 'combat',
     setup(world) {
-      const stats = world.services.registries.stats as Registry<StatDef>;
+      const stats = statRegistryOf(world);
       if (!stats.has('accuracy')) stats.register('accuracy', { id: 'accuracy', default: 0 });
       if (!stats.has('evasion')) stats.register('evasion', { id: 'evasion', default: 0 });
-      (world.services.registries.handlers as Registry<ActionHandler>).override('attack', attack);
+      handlerRegistryOf(world).override('attack', attack);
     },
   };
 }

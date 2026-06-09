@@ -26,26 +26,26 @@ import { makeRotPath } from './adapters/rot-path';
 import { createTimeline } from './sim/timeline';
 import { registerCoreHandlers } from './sim/handlers';
 import { registerCoreTiles } from './core/tiles';
-import { registerCoreComponents } from './core/component';
-import { registerCoreStats, type StatDef } from './sim/stats';
-import { registerCoreResources, type ResourceDef } from './sim/resources';
-import { registerCoreStatuses, type StatusDef } from './sim/status';
-import {
-  equippableMixin,
-  registerCoreConsumableEffects,
-  type ConsumableEffectRegistry,
-} from './sim/items';
-import type { Mixin } from './core/mixin';
+import { registerCoreComponents, componentRegistryOf } from './core/component';
+import { registerCoreStats, statRegistryOf } from './sim/stats';
+import { registerCoreResources, resourceRegistryOf } from './sim/resources';
+import { registerCoreStatuses, statusRegistryOf } from './sim/status';
+import { equippableMixin, registerCoreConsumableEffects, consumableEffectRegistryOf } from './sim/items';
+import { handlerRegistryOf } from './core/action';
+import { mixinRegistryOf } from './core/mixin';
+import { generatorRegistryOf } from './mapgen/generator';
 import { aiHunterMixin, aiWandererMixin } from './sim/ai/simple';
 import { createFieldManager } from './sim/field';
 import { createFlagManager } from './sim/flags';
 import { attackBumpInteraction } from './sim/bump';
 import { desireAiMixin } from './sim/ai/desire-ai';
 import { diedReactor } from './sim/death';
-import { registerCoreTimerEffects } from './sim/effects';
-import type { TimerEffectRegistry } from './sim/effects';
-import { registerCoreTriggerContent } from './sim/triggers';
-import type { TriggerEffectRegistry, TriggerTestRegistry } from './sim/triggers';
+import { registerCoreTimerEffects, timerEffectRegistryOf } from './sim/effects';
+import {
+  registerCoreTriggerContent,
+  triggerTestRegistryOf,
+  triggerEffectRegistryOf,
+} from './sim/triggers';
 import { takeTurn } from './sim/driver';
 import { descendHandler, ascendHandler } from './sim/transition';
 import { buildFrame } from './render/frame';
@@ -55,11 +55,8 @@ import { bsp } from './mapgen/bsp';
 import { cellular } from './mapgen/cellular';
 import { drunkard } from './mapgen/drunkard';
 import { prefab } from './mapgen/prefab';
-import type { MapGenerator } from './mapgen/generator';
-import type { ComponentRegistry } from './core/component';
-import type { Action, ActionHandler } from './core/action';
+import type { Action } from './core/action';
 import type { EntityId } from './core/entity';
-import type { Registry } from './core/registry';
 import type { RNG } from './core/rng';
 import type { FovProvider } from './core/fov';
 import type { PathProvider } from './core/path';
@@ -472,26 +469,27 @@ export interface WorldOptions {
  * names its save referenced. Content can override/extend any entry by id after.
  */
 function registerCoreContent(world: World): void {
-  const handlers = world.services.registries.handlers as Registry<ActionHandler>;
+  const handlers = handlerRegistryOf(world);
   registerCoreHandlers(handlers);
   handlers.register('descend', descendHandler);
   handlers.register('ascend', ascendHandler);
-  registerCoreComponents(world.services.registries.components as ComponentRegistry);
+  registerCoreComponents(componentRegistryOf(world));
   registerCoreTiles(world.services.tiles, world.services.config.tiles);
-  registerCoreStats(world.services.registries.stats as Registry<StatDef>, world.services.config.defaultSpeed);
-  registerCoreResources(world.services.registries.resources as Registry<ResourceDef>);
-  registerCoreStatuses(world.services.registries.statuses as Registry<StatusDef>, world.services.config.defaultSpeed);
-  (world.services.registries.generators as Registry<MapGenerator>).register('bsp', bsp);
-  (world.services.registries.generators as Registry<MapGenerator>).register('cellular', cellular);
-  (world.services.registries.generators as Registry<MapGenerator>).register('drunkard', drunkard);
-  (world.services.registries.generators as Registry<MapGenerator>).register('prefab', prefab);
-  const mixins = world.services.registries.mixins as Registry<Mixin>;
+  registerCoreStats(statRegistryOf(world), world.services.config.defaultSpeed);
+  registerCoreResources(resourceRegistryOf(world));
+  registerCoreStatuses(statusRegistryOf(world), world.services.config.defaultSpeed);
+  const generators = generatorRegistryOf(world);
+  generators.register('bsp', bsp);
+  generators.register('cellular', cellular);
+  generators.register('drunkard', drunkard);
+  generators.register('prefab', prefab);
+  const mixins = mixinRegistryOf(world);
   mixins.register('equippable', equippableMixin);
   mixins.register('aiHunter', aiHunterMixin);
   mixins.register('aiWanderer', aiWandererMixin);
   mixins.register('desire-ai', desireAiMixin);
-  registerCoreConsumableEffects(world.services.registries.consumableEffects as ConsumableEffectRegistry);
-  registerCoreTimerEffects(world.services.registries.timerEffects as TimerEffectRegistry);
+  registerCoreConsumableEffects(consumableEffectRegistryOf(world));
+  registerCoreTimerEffects(timerEffectRegistryOf(world));
   // R7 default: bump → attack (the roguelike convention). Config-toggleable —
   // `bumpToAttack: false` gives intent-based combat (bump = swap/block).
   if (world.services.config.movement.bumpToAttack) {
@@ -499,9 +497,9 @@ function registerCoreContent(world: World): void {
   }
 
   registerCoreTriggerContent(
-    world.services.registries.triggerTests as TriggerTestRegistry,
-    world.services.registries.triggerEffects as TriggerEffectRegistry,
-    world.services.registries.timerEffects as TimerEffectRegistry,
+    triggerTestRegistryOf(world),
+    triggerEffectRegistryOf(world),
+    timerEffectRegistryOf(world),
   );
   world.services.reactors.register(diedReactor);
 }

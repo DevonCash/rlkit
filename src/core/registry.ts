@@ -19,7 +19,15 @@ export interface Registry<T> {
   ids(): string[];
 }
 
-/** The bag of all registries carried by a World's services. */
+/**
+ * The bag of all registries carried by a World's services.
+ *
+ * Kept deliberately type-erased: core defines this map but the concrete element
+ * types (`StatDef`, `MapGenerator`, …) live in `sim`/`mapgen`, which core may
+ * not import (the layering rule). Consumers read a registry through the typed
+ * accessor co-located with its element type (e.g. `statRegistryOf` in
+ * `sim/stats.ts`), which centralizes the one `Registry<unknown>` → concrete cast.
+ */
 export type Registries = { [kind: string]: Registry<unknown> };
 
 /**

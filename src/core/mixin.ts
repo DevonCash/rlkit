@@ -60,6 +60,11 @@ export interface Mixin {
 
 export type MixinRegistry = Registry<Mixin>;
 
+/** Typed view of the mixin registry (centralizes the one downcast). */
+export function mixinRegistryOf(world: ReadonlyWorld): MixinRegistry {
+  return world.services.registries.mixins as MixinRegistry;
+}
+
 export function createMixinRegistry(): MixinRegistry {
   return createRegistry<Mixin>('mixin');
 }

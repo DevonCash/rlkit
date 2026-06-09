@@ -16,6 +16,7 @@ import type { Point } from './coords';
 import type { EntityId } from './entity';
 import type { GameEvent } from './events';
 import type { World, ReadonlyWorld } from './world';
+import type { Registry } from './registry';
 
 /** The built-in action variants resolved by the engine's own handlers. */
 export type CoreAction =
@@ -100,6 +101,13 @@ export type ActionOutcome =
 
 /** An action handler: inspects the context and pushes effects or rejects/fizzles. */
 export type ActionHandler = (ctx: ActionContext) => void;
+
+export type ActionHandlerRegistry = Registry<ActionHandler>;
+
+/** Typed view of the action-handler registry (centralizes the one downcast). */
+export function handlerRegistryOf(world: ReadonlyWorld): ActionHandlerRegistry {
+  return world.services.registries.handlers as ActionHandlerRegistry;
+}
 
 /**
  * A registered, serialize-by-name effect for the timeline (§7.1). Delayed

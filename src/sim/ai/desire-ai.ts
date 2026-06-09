@@ -14,8 +14,7 @@ import { get, type Entity } from '../../core/entity';
 import type { Position, DesireAIData } from '../../core/component';
 import type { Mixin } from '../../core/mixin';
 import type { Action } from '../../core/action';
-import type { FieldDescriptor, DesireProfile } from '../../core/fields';
-import type { Registry } from '../../core/registry';
+import { fieldRegistryOf, type DesireProfile } from '../../core/fields';
 import type { ReadonlyWorld } from '../../core/world';
 import { cellOf, neighbors4, neighbors8, type Cell } from '../../core/coords';
 import { isWalkable } from '../../core/level';
@@ -31,7 +30,7 @@ export const desireAiMixin: Mixin = {
     if (!level) return undefined;
 
     const store = world.services.fields.forLevel(pos.levelId);
-    const fieldReg = world.services.registries.fields as Registry<FieldDescriptor> | undefined;
+    const fieldReg = fieldRegistryOf(world);
     // Descent must use the SAME neighbor topology the fields were computed with,
     // or a 4-mover on an 8-connected field can stall short of the goal (and an
     // 8-scan on a 4-field picks misleading diagonal shortcuts). Derive it from

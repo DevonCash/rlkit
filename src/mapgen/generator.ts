@@ -10,6 +10,7 @@
 import type { Cell } from '../core/coords';
 import { createRegistry, type Registry } from '../core/registry';
 import type { RNG } from '../core/rng';
+import type { ReadonlyWorld } from '../core/world';
 
 /** A rectangular region (e.g. a BSP room), in cell coordinates. */
 export interface Region {
@@ -55,6 +56,11 @@ export interface MapGenerator {
 }
 
 export type GeneratorRegistry = Registry<MapGenerator>;
+
+/** Typed view of the generator registry (centralizes the one downcast). */
+export function generatorRegistryOf(world: ReadonlyWorld): GeneratorRegistry {
+  return world.services.registries.generators as GeneratorRegistry;
+}
 
 export function createGeneratorRegistry(): GeneratorRegistry {
   return createRegistry<MapGenerator>('generator');

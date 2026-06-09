@@ -10,13 +10,12 @@
  */
 import { get, set } from '../core/entity';
 import type { Position } from '../core/component';
-import type { Effect, ActionHandler, ActionContext } from '../core/action';
-import type { Mixin } from '../core/mixin';
-import type { Registry } from '../core/registry';
+import { handlerRegistryOf, type Effect, type ActionHandler, type ActionContext } from '../core/action';
+import { mixinRegistryOf, type Mixin } from '../core/mixin';
 import type { Module } from '../core/module';
 import { cellOf, pointOf } from '../core/coords';
 import { hasLoS } from '../core/geometry';
-import { deriveStats, deriveStat, type StatDef } from '../sim/stats';
+import { deriveStats, deriveStat, statRegistryOf } from '../sim/stats';
 import { changeResourceEffect } from '../sim/resources';
 import { defaultDamageFormula } from '../sim/combat';
 import { nearestHostile, pathToward } from '../sim/ai/helpers';
@@ -105,11 +104,11 @@ export function rangedModule(opts: RangedOptions = {}): Module {
   return {
     id: 'ranged',
     setup(world) {
-      const stats = world.services.registries.stats as Registry<StatDef>;
+      const stats = statRegistryOf(world);
       if (!stats.has('range')) stats.register('range', { id: 'range', default: defaultRange });
       if (!stats.has('ranged-attack')) stats.register('ranged-attack', { id: 'ranged-attack', default: 0 });
-      (world.services.registries.handlers as Registry<ActionHandler>).register('ranged', ranged);
-      (world.services.registries.mixins as Registry<Mixin>).register('aiRanged', aiRangedMixin);
+      handlerRegistryOf(world).register('ranged', ranged);
+      mixinRegistryOf(world).register('aiRanged', aiRangedMixin);
     },
   };
 }
